@@ -101,3 +101,5 @@ export interface CreateAyushAssessmentInput {
   vyayama_shakti?: string;
   vaya?: string;
 }
+
+export type { AyushSummaryStructured } from './summary';

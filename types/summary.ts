@@ -64,7 +64,8 @@ export interface StructuredClinicalSummary {
   intake_session_id: string;
   consultation_mode?: ConsultationMode;
   summary_content: string;
-  structured_summary: ClinicalSummaryStructured | AyushSummaryStructured;
+  structured_summary: ClinicalSummaryStructured;
+  ayush_summary?: AyushSummaryStructured;
   version: number;
   status: 'draft' | 'final';
   generated_at: string;
@@ -76,7 +77,8 @@ export interface CreateClinicalSummaryInput {
   intake_session_id: string;
   consultation_mode?: ConsultationMode;
   summary_content: string;
-  structured_summary: ClinicalSummaryStructured | AyushSummaryStructured;
+  structured_summary: ClinicalSummaryStructured;
+  ayush_summary?: AyushSummaryStructured;
   version?: number;
   status?: 'draft' | 'final';
 }

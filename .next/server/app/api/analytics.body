@@ -1,1 +1,1 @@
-{"success":true,"data":{"totalPatients":8,"completedIntakes":18,"activeQueueCount":3,"redFlagAlertsCount":4,"avgCompletionTimeMinutes":3.8,"documentsProcessedCount":12,"languageDistribution":{"en":9,"ta":8,"hi":10},"priorityDistribution":{"critical":1,"high":1,"normal":1}}}
+{"success":true,"data":{"totalPatients":9,"completedIntakes":18,"activeQueueCount":4,"redFlagAlertsCount":4,"avgCompletionTimeMinutes":3.8,"documentsProcessedCount":12,"languageDistribution":{"en":9,"ta":9,"hi":10},"priorityDistribution":{"critical":1,"high":1,"normal":2}}}

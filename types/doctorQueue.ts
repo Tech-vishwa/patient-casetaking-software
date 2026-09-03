@@ -13,7 +13,7 @@ export interface PatientQueueItem {
   phone: string;
   abhaId?: string | null;
   chiefComplaint: string;
-  consultationMode: ConsultationMode;
+  consultationMode?: ConsultationMode;
   priority: QueuePriority;
   hasRedFlag: boolean;
   redFlagCategories: string[];

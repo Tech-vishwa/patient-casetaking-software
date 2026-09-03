@@ -51,14 +51,14 @@ async function runComprehensiveAudit() {
   // -------------------------------------------------------------
   // [1] i18n Dictionaries (12 Domains across EN, TA, HI)
   // -------------------------------------------------------------
-  console.log('\n[1] Auditing Internationalization (i18n) Dictionaries (12 Domains)...');
+  console.log('\n[1] Auditing Internationalization (i18n) Dictionaries (13 Domains)...');
   const enKeys = Object.keys(dictionaries.en);
   const taKeys = Object.keys(dictionaries.ta);
   const hiKeys = Object.keys(dictionaries.hi);
 
-  assert(enKeys.length === 12, `English dictionary contains all 12 domains (${enKeys.length})`);
-  assert(taKeys.length === 12, `Tamil dictionary contains all 12 domains (${taKeys.length})`);
-  assert(hiKeys.length === 12, `Hindi dictionary contains all 12 domains (${hiKeys.length})`);
+  assert(enKeys.length === 13, `English dictionary contains all 13 domains (${enKeys.length})`);
+  assert(taKeys.length === 13, `Tamil dictionary contains all 13 domains (${taKeys.length})`);
+  assert(hiKeys.length === 13, `Hindi dictionary contains all 13 domains (${hiKeys.length})`);
 
   for (const domain of enKeys) {
     const enSubKeys = Object.keys(dictionaries.en[domain]);
