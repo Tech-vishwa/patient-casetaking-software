@@ -1,16 +1,26 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { mockDb } from '@/lib/supabase/mockDb';
-import { IntakeSession, CreateIntakeSessionInput, IntakeSessionStatus } from '@/types/intakeSession';
+import {
+  IntakeSession,
+  CreateIntakeSessionInput,
+  IntakeSessionStatus,
+  WorkflowState,
+} from '@/types/intakeSession';
+import { WorkflowStateMachine } from './workflowStateMachine';
 
 export class IntakeSessionService {
   /**
    * Initialize a new intake session for a registered patient
    */
-  static async startSession(patientId: string): Promise<IntakeSession> {
+  static async startSession(
+    patientId: string,
+    initialWorkflowState: WorkflowState = 'ONBOARDING'
+  ): Promise<IntakeSession> {
     const input: CreateIntakeSessionInput = {
       patient_id: patientId,
-      status: 'onboarding',
-      current_step: 1,
+      status: WorkflowStateMachine.mapWorkflowStateToStatus(initialWorkflowState),
+      workflow_state: initialWorkflowState,
+      current_step: WorkflowStateMachine.mapWorkflowStateToStep(initialWorkflowState),
     };
 
     if (isSupabaseConfigured && supabase) {
@@ -32,7 +42,10 @@ export class IntakeSessionService {
           console.warn('Supabase session start failed, using fallback:', error.message);
           return await mockDb.createIntakeSession(input);
         }
-        return data as IntakeSession;
+        return {
+          ...(data as IntakeSession),
+          workflow_state: initialWorkflowState,
+        };
       } catch (err) {
         console.warn('Supabase session connection error:', err);
         return await mockDb.createIntakeSession(input);
@@ -66,7 +79,63 @@ export class IntakeSessionService {
   }
 
   /**
-   * Update current step and status of an active session
+   * Update workflow state and progress of an active session
+   */
+  static async updateWorkflowState(
+    sessionId: string,
+    workflowState: WorkflowState,
+    step?: number,
+    status?: IntakeSessionStatus,
+    draftHistory?: any
+  ): Promise<IntakeSession | null> {
+    const calculatedStep = step !== undefined ? step : WorkflowStateMachine.mapWorkflowStateToStep(workflowState);
+    const calculatedStatus = status || WorkflowStateMachine.mapWorkflowStateToStatus(workflowState);
+
+    const updates: Partial<IntakeSession> = {
+      workflow_state: workflowState,
+      current_step: calculatedStep,
+      status: calculatedStatus,
+    };
+
+    if (draftHistory !== undefined) {
+      updates.draft_history = draftHistory;
+    }
+
+    if (workflowState === 'COMPLETED') {
+      updates.completed_at = new Date().toISOString();
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('intake_sessions')
+          .update({
+            current_step: calculatedStep,
+            status: calculatedStatus,
+            ...(updates.completed_at ? { completed_at: updates.completed_at } : {}),
+          })
+          .eq('id', sessionId)
+          .select()
+          .single();
+
+        if (error) {
+          return await mockDb.updateIntakeSession(sessionId, updates);
+        }
+        return {
+          ...(data as IntakeSession),
+          workflow_state: workflowState,
+          draft_history: draftHistory,
+        };
+      } catch {
+        return await mockDb.updateIntakeSession(sessionId, updates);
+      }
+    }
+
+    return await mockDb.updateIntakeSession(sessionId, updates);
+  }
+
+  /**
+   * Backward compatible updateProgress
    */
   static async updateProgress(
     sessionId: string,
@@ -99,5 +168,12 @@ export class IntakeSessionService {
     }
 
     return await mockDb.updateIntakeSession(sessionId, updates);
+  }
+
+  /**
+   * Find unfinished intake session for a patient
+   */
+  static async getIncompleteSession(patientId: string): Promise<IntakeSession | null> {
+    return await mockDb.getIncompleteSessionByPatient(patientId);
   }
 }

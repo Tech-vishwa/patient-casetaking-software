@@ -7,43 +7,44 @@ import { usePatientSession } from '@/context/PatientSessionContext';
 import { AIService, ComplaintCategory } from '@/services/aiService';
 import { RedFlagService } from '@/services/redFlagService';
 import { ClinicalService } from '@/services/clinicalService';
+import { mockDb } from '@/lib/supabase/mockDb';
 import { AiAvatar } from '@/components/kiosk/AiAvatar';
+import { ConversationProgress } from '@/components/kiosk/ConversationProgress';
 import { InputMode } from '@/components/kiosk/InputMode';
 import { RedFlagModal } from '@/components/kiosk/RedFlagModal';
-import { ConversationProgress } from '@/components/kiosk/ConversationProgress';
-import { AudioPromptButton } from '@/components/kiosk/AudioPromptButton';
 import { KioskButton } from '@/components/kiosk/KioskButton';
+import { AudioPromptButton } from '@/components/kiosk/AudioPromptButton';
 import {
   ClinicalStage,
   ClinicalQuestion,
   ConversationMessage,
   RedFlagAlert,
 } from '@/types/clinical';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 
-export default function ConversationalIntakePage() {
+export default function ConversationalHistoryPage() {
   const router = useRouter();
-  const { t, language, speakText } = useLanguage();
-  const { patient, session, consent, isLoading: sessionLoading } = usePatientSession();
+  const { language, t, speakText } = useLanguage();
+  const { patient, session, consent, isLoading: sessionLoading, updateWorkflowState } = usePatientSession();
 
-  // Interview state
   const [stage, setStage] = useState<ClinicalStage>('chief_complaint');
   const [complaintCategory, setComplaintCategory] = useState<ComplaintCategory>('general');
+  const [hpiQuestionIndex, setHpiQuestionIndex] = useState<number>(0);
   const [currentQuestion, setCurrentQuestion] = useState<ClinicalQuestion>(
     AIService.getInitialGreeting(language)
   );
-  const [hpiQuestionIndex, setHpiQuestionIndex] = useState<number>(0);
+
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [avatarState, setAvatarState] = useState<'idle' | 'speaking' | 'listening' | 'thinking'>('speaking');
+  const [activeRedFlag, setActiveRedFlag] = useState<RedFlagAlert | null>(null);
+  const [avatarState, setAvatarState] = useState<'idle' | 'speaking' | 'listening' | 'thinking'>('idle');
+  const [isProcessingAnswer, setIsProcessingAnswer] = useState<boolean>(false);
+  const [isFinishingInterview, setIsFinishingInterview] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
 
-  // Red Flag Alert state
-  const [activeRedFlag, setActiveRedFlag] = useState<RedFlagAlert | null>(null);
-
-  // Clinical answers accumulator for structured history
+  // Collected structured answers across all 8 stages
   const [collectedData, setCollectedData] = useState<{
     chief_complaint: string;
-    hpi: Record<string, any>;
+    hpi: Record<string, string>;
     past_medical_history: Array<{ condition: string; status: 'yes' | 'no' | 'not_sure' }>;
     surgical_history: Array<{ surgery: string }>;
     medications: Array<{ name: string }>;
@@ -74,34 +75,70 @@ export default function ConversationalIntakePage() {
     }
   }, [sessionLoading, patient, consent, router]);
 
-  // Initial greeting message
+  // Restore existing messages or load initial greeting on mount
   useEffect(() => {
-    if (patient && messages.length === 0) {
-      const initialGreeting = AIService.getInitialGreeting(language);
-      setCurrentQuestion(initialGreeting);
-      const initialMsg: ConversationMessage = {
-        id: 'msg-init',
-        sender: 'ai',
-        text: initialGreeting.question,
-        timestamp: new Date().toISOString(),
-        stage: 'chief_complaint',
-      };
-      setMessages([initialMsg]);
-      speakText(initialGreeting.question);
+    if (session && patient) {
+      // Check if session already has stored messages
+      mockDb.getConversationMessages(session.id).then((storedMsgs) => {
+        if (storedMsgs && storedMsgs.length > 0) {
+          setMessages(storedMsgs);
+          // Restore clinical history draft
+          ClinicalService.getClinicalHistory(session.id).then((hist) => {
+            if (hist) {
+              setCollectedData({
+                chief_complaint: hist.chief_complaint || '',
+                hpi: (hist.hpi as any) || {},
+                past_medical_history: hist.past_medical_history || [],
+                surgical_history: hist.surgical_history || [],
+                medications: hist.medications || [],
+                allergies: hist.allergies || [],
+                family_history: hist.family_history || [],
+                personal_history: (hist.personal_history as any) || {},
+              });
+            }
+          });
+        } else if (messages.length === 0) {
+          const initialGreeting = AIService.getInitialGreeting(language);
+          setCurrentQuestion(initialGreeting);
+          const initialMsg: ConversationMessage = {
+            id: 'msg-init',
+            sender: 'ai',
+            text: initialGreeting.question,
+            timestamp: new Date().toISOString(),
+            stage: 'chief_complaint',
+          };
+          setMessages([initialMsg]);
+          speakText(initialGreeting.question);
+        }
+      });
     }
-  }, [patient, language]);
+  }, [session?.id, patient?.id]);
+
+  // Re-translate current question when language changes without clearing messages
+  useEffect(() => {
+    if (stage === 'chief_complaint' && messages.length <= 1) {
+      const updatedGreeting = AIService.getInitialGreeting(language);
+      setCurrentQuestion(updatedGreeting);
+    } else {
+      const q = AIService.getNextQuestion(stage, hpiQuestionIndex, complaintCategory, language);
+      if (q) {
+        setCurrentQuestion(q);
+      }
+    }
+  }, [language]);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, currentQuestion]);
+  }, [messages, currentQuestion, isProcessingAnswer]);
 
   // -----------------------------------------------------------------
   // Handle Patient Answer Submission (Voice / Text / Touch)
   // -----------------------------------------------------------------
   const handleAnswerSubmit = async (answerText: string, inputMode: 'voice' | 'text' | 'touch') => {
-    if (!session || !patient || !answerText.trim()) return;
+    if (!session || !patient || !answerText.trim() || isProcessingAnswer) return;
 
+    setIsProcessingAnswer(true);
     setAvatarState('thinking');
 
     // 1. Add patient message to UI
@@ -183,18 +220,40 @@ export default function ConversationalIntakePage() {
     setStage(nextStage);
     setHpiQuestionIndex(nextIndex);
 
-    // Save conversation progress asynchronously
+    // Save conversation progress and draft state asynchronously
     await ClinicalService.saveConversation(session.id, patient.id, updatedMessages, language);
+    await updateWorkflowState('HISTORY_IN_PROGRESS', 3, newCollected);
 
-    // 4. Check if interview is complete
+    // 4. Check if interview is complete -> AUTO-TRANSITION TO DOCUMENTS
     if (nextStage === 'completed') {
-      // Store in session storage and redirect to Review Screen
-      sessionStorage.setItem('medikiosk_active_history_draft', JSON.stringify(newCollected));
-      router.push('/kiosk/conversation/review');
+      setIsFinishingInterview(true);
+      setAvatarState('speaking');
+
+      // Save final structured clinical history
+      await ClinicalService.saveClinicalHistory({
+        intake_session_id: session.id,
+        patient_id: patient.id,
+        chief_complaint: newCollected.chief_complaint,
+        hpi: newCollected.hpi,
+        past_medical_history: newCollected.past_medical_history,
+        surgical_history: newCollected.surgical_history,
+        medications: newCollected.medications,
+        allergies: newCollected.allergies,
+        family_history: newCollected.family_history,
+        personal_history: newCollected.personal_history,
+      });
+
+      await updateWorkflowState('DOCUMENTS_IN_PROGRESS', 4, newCollected);
+      speakText('Health interview completed. Moving to medical documents stage.');
+
+      // Smooth auto-transition to Document upload stage
+      setTimeout(() => {
+        router.push('/kiosk/documents');
+      }, 900);
       return;
     }
 
-    // 5. Generate Next AI Question
+    // 5. Generate Next AI Question automatically
     const nextQ = AIService.getNextQuestion(nextStage, nextIndex, nextCategory, language);
     if (nextQ) {
       setCurrentQuestion(nextQ);
@@ -209,11 +268,13 @@ export default function ConversationalIntakePage() {
       setAvatarState('speaking');
       speakText(nextQ.question);
     }
+
+    setIsProcessingAnswer(false);
   };
 
   const handleExitInterview = () => {
     setShowExitConfirm(false);
-    router.push('/kiosk/dashboard');
+    router.push('/patient/dashboard');
   };
 
   if (sessionLoading || !patient) {
@@ -229,23 +290,37 @@ export default function ConversationalIntakePage() {
       {/* 8-Stage Progress Tracker */}
       <ConversationProgress currentStage={stage} />
 
-      {/* Top Header & Assistant Avatar Bar */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <AiAvatar state={avatarState} name={t.conversation.assistantName.split('•')[0].trim()} />
-
+      {/* Top Banner with AI Avatar & Patient Name */}
+      <div className="flex items-center justify-between gap-4 my-2">
         <div className="flex items-center gap-3">
+          <AiAvatar state={avatarState} />
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black text-kiosk-navy">Medi AI Intake Assistant</h2>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Live
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              Interviewing: <strong className="text-kiosk-navy">{patient.full_name}</strong> ({patient.age} yrs, {patient.gender})
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <AudioPromptButton textToSpeak={currentQuestion.question} />
           <button
+            type="button"
             onClick={() => setShowExitConfirm(true)}
-            className="px-4 py-2 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100 font-bold text-sm transition"
+            className="px-3.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs transition"
           >
             {t.conversation.exitInterview}
           </button>
         </div>
       </div>
 
-      {/* Conversation Messages Container */}
-      <div className="flex-1 bg-slate-50/70 border-2 border-slate-200 rounded-3xl p-4 sm:p-6 mb-6 overflow-y-auto max-h-[380px] space-y-4 shadow-inner">
+      {/* Messages Container */}
+      <div className="flex-1 bg-slate-50/70 border-2 border-slate-200 rounded-3xl p-4 sm:p-6 mb-4 overflow-y-auto max-h-[380px] space-y-4 shadow-inner">
         {messages.map((msg) => {
           const isAi = msg.sender === 'ai';
 
@@ -289,15 +364,35 @@ export default function ConversationalIntakePage() {
             </div>
           );
         })}
+
+        {/* AI Thinking / Processing State */}
+        {isProcessingAnswer && !isFinishingInterview && (
+          <div className="flex items-center gap-2 p-3 bg-sky-50 text-kiosk-blue rounded-2xl border border-sky-200 font-bold text-sm max-w-xs animate-in fade-in">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>AI Thinking & Generating Next Question...</span>
+          </div>
+        )}
+
+        {/* Interview Finishing Banner */}
+        {isFinishingInterview && (
+          <div className="p-4 bg-emerald-50 text-emerald-900 rounded-2xl border-2 border-emerald-300 font-bold text-base flex items-center justify-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            <span>Clinical Interview Complete! Transitioning to Document Upload...</span>
+          </div>
+        )}
+
         <div ref={chatBottomRef} />
       </div>
 
-      {/* Multimodal Input Section */}
-      <InputMode
-        question={currentQuestion}
-        onSubmitAnswer={handleAnswerSubmit}
-        onListeningStateChange={(isList) => setAvatarState(isList ? 'listening' : 'idle')}
-      />
+      {/* Multimodal Input Section (Touch Options / Voice / Type) */}
+      {!isFinishingInterview && (
+        <InputMode
+          question={currentQuestion}
+          onSubmitAnswer={handleAnswerSubmit}
+          disabled={isProcessingAnswer}
+          onListeningStateChange={(isList) => setAvatarState(isList ? 'listening' : 'idle')}
+        />
+      )}
 
       {/* Deterministic Red Flag Safety Modal */}
       {activeRedFlag && (

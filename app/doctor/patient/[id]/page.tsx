@@ -235,11 +235,11 @@ export default function DoctorPatientWorkspacePage() {
           {/* Top Return & Status Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <Link
-              href="/doctor/queue"
+              href="/doctor/dashboard"
               className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-kiosk-blue transition"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Patient Queue</span>
+              <span>Back to Doctor Dashboard</span>
             </Link>
 
             <div className="flex items-center gap-3">

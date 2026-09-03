@@ -43,6 +43,7 @@ const INITIAL_PATIENTS: Patient[] = [
     age: 62,
     gender: 'male',
     phone: '9876543210',
+    password: '123456',
     abha_id: '91-1234-5678-9012',
     preferred_language: 'hi',
     created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
@@ -54,6 +55,7 @@ const INITIAL_PATIENTS: Patient[] = [
     age: 45,
     gender: 'female',
     phone: '9840123456',
+    password: '123456',
     abha_id: '91-9876-5432-1098',
     preferred_language: 'ta',
     created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
@@ -65,6 +67,7 @@ const INITIAL_PATIENTS: Patient[] = [
     age: 42,
     gender: 'male',
     phone: '9123456780',
+    password: '123456',
     abha_id: '91-5555-6666-7777',
     preferred_language: 'en',
     created_at: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
@@ -75,19 +78,23 @@ const INITIAL_PATIENTS: Patient[] = [
 const INITIAL_USERS: DoctorUser[] = [
   {
     id: 'doc-001',
+    doctor_id: 'DOC-101',
     email: 'doctor@ayushman.gov.in',
     full_name: 'Dr. S. K. Venkatraman, MD',
     role: 'doctor',
     department: 'General & Internal Medicine',
+    hospital_name: 'District Government Hospital',
     registration_number: 'MCI-TN-2012-48291',
     hospital_room: 'Room 4',
   },
   {
     id: 'admin-001',
+    doctor_id: 'ADM-001',
     email: 'admin@ayushman.gov.in',
     full_name: 'Hospital Chief Medical Administrator',
     role: 'admin',
     department: 'Hospital Administration & Quality Control',
+    hospital_name: 'District Government Hospital',
     hospital_room: 'Admin Block A',
   },
 ];
@@ -97,7 +104,8 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     id: 'demo-sess-001',
     patient_id: 'demo-pat-001',
     status: 'summary_ready',
-    current_step: 3,
+    workflow_state: 'SUMMARY_READY',
+    current_step: 5,
     started_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
   },
@@ -105,7 +113,8 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     id: 'demo-sess-002',
     patient_id: 'demo-pat-002',
     status: 'summary_ready',
-    current_step: 3,
+    workflow_state: 'SUMMARY_READY',
+    current_step: 5,
     started_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
   },
@@ -113,7 +122,8 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     id: 'demo-sess-003',
     patient_id: 'demo-pat-003',
     status: 'summary_ready',
-    current_step: 3,
+    workflow_state: 'SUMMARY_READY',
+    current_step: 5,
     started_at: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 65 * 60 * 1000).toISOString(),
   },
@@ -271,6 +281,7 @@ class MockDatabase {
       age: input.age,
       gender: input.gender,
       phone: input.phone,
+      password: input.password || '123456',
       abha_id: input.abha_id || null,
       preferred_language: input.preferred_language || 'en',
       created_at: new Date().toISOString(),
@@ -279,6 +290,16 @@ class MockDatabase {
     patients.push(newPatient);
     this.setItem(STORAGE_KEYS.PATIENTS, patients);
     return newPatient;
+  }
+
+  async authenticatePatient(phone: string, password?: string): Promise<Patient | null> {
+    const patients = this.getPatients();
+    const patient = patients.find((p) => p.phone === phone);
+    if (!patient) return null;
+    if (password && patient.password && patient.password !== password) {
+      return null;
+    }
+    return patient;
   }
 
   async findPatientByPhone(phone: string): Promise<Patient | null> {
@@ -352,7 +373,9 @@ class MockDatabase {
       id: 'sess-' + Math.random().toString(36).substring(2, 9),
       patient_id: input.patient_id,
       status: input.status || 'onboarding',
+      workflow_state: input.workflow_state || 'ONBOARDING',
       current_step: input.current_step || 1,
+      draft_history: input.draft_history || null,
       started_at: new Date().toISOString(),
       completed_at: null,
     };
@@ -387,6 +410,33 @@ class MockDatabase {
         .filter((s) => s.patient_id === patientId && s.status !== 'completed')
         .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())[0] || null
     );
+  }
+
+  async getIncompleteSessionByPatient(patientId: string): Promise<IntakeSession | null> {
+    return this.getActiveSessionByPatient(patientId);
+  }
+
+  async getPatientConsultationHistory(patientId: string): Promise<any[]> {
+    const sessions = this.getIntakeSessions();
+    const summaries = this.getClinicalSummaries();
+    const reviews = this.getSummaryReviews();
+
+    return sessions
+      .filter((s) => s.patient_id === patientId)
+      .map((session) => {
+        const summary = summaries.find((sum) => sum.intake_session_id === session.id);
+        const review = reviews.find((r) => r.intake_session_id === session.id);
+        return {
+          sessionId: session.id,
+          date: session.completed_at || session.started_at,
+          status: session.status,
+          workflowState: session.workflow_state,
+          chiefComplaint: summary?.structured_summary?.chief_complaint || 'General Clinical Consultation',
+          reviewStatus: review ? review.review_status : 'pending',
+          doctorName: review ? review.doctor_name : 'Pending Physician Review',
+        };
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   // ---------------- Clinical Conversations (Segment 2) ----------------

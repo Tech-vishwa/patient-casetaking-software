@@ -65,6 +65,18 @@ export const DoctorHeader: React.FC<DoctorHeaderProps> = ({
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-2">
             <Link
+              href="/doctor/dashboard"
+              className={`px-4 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 transition ${
+                pathname === '/doctor/dashboard'
+                  ? 'bg-sky-50 text-kiosk-blue border-2 border-kiosk-blue/40 shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              <span>Dashboard</span>
+            </Link>
+
+            <Link
               href="/doctor/queue"
               className={`px-4 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 transition ${
                 pathname.startsWith('/doctor/queue') || pathname.startsWith('/doctor/patient')

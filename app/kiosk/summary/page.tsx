@@ -72,7 +72,7 @@ export default function PatientSummaryReviewPage() {
     if (!session) return;
     setIsFinishing(true);
     try {
-      await IntakeSessionService.updateProgress(session.id, 3, 'summary_ready');
+      await IntakeSessionService.updateWorkflowState(session.id, 'PATIENT_CONFIRMED', 5, 'summary_ready');
       setShowSuccessModal(true);
       speakText(t.summary.successModalTitle);
     } catch (err) {
@@ -83,8 +83,7 @@ export default function PatientSummaryReviewPage() {
   };
 
   const handleFinishToWelcome = () => {
-    resetKioskSession();
-    router.push('/kiosk/welcome');
+    router.push('/patient/dashboard');
   };
 
   if (sessionLoading || !patient) {

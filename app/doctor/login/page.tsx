@@ -23,7 +23,7 @@ export default function DoctorLoginPage() {
     try {
       const res = await login(email, pin);
       if (res.success) {
-        router.push('/doctor/queue');
+        router.push('/doctor/dashboard');
       } else {
         setErrorMessage(res.error || 'Invalid credentials.');
       }
@@ -40,7 +40,7 @@ export default function DoctorLoginPage() {
     if (role === 'admin') {
       router.push('/admin/dashboard');
     } else {
-      router.push('/doctor/queue');
+      router.push('/doctor/dashboard');
     }
   };
 

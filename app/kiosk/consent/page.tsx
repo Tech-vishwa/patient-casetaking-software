@@ -18,16 +18,19 @@ import {
   Lock,
   FileText,
   UserCheck,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 
 export default function DigitalConsentPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { patient, setConsent, isLoading: sessionLoading, resetKioskSession } = usePatientSession();
+  const { patient, setConsent, isLoading: sessionLoading, resetKioskSession, updateWorkflowState } = usePatientSession();
 
   const [consent1, setConsent1] = useState<boolean>(true);
   const [consent2, setConsent2] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isAgreedAndAdvancing, setIsAgreedAndAdvancing] = useState<boolean>(false);
   const [showDeclineModal, setShowDeclineModal] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -41,35 +44,54 @@ export default function DigitalConsentPage() {
   const narrationText = `${t.consent.title}. ${t.consent.subtitle}. ${t.consent.noticeHeader}: ${t.consent.noticeBody}. ${t.consent.consent1Label}. ${t.consent.consent2Label}.`;
 
   const handleAcceptConsent = async () => {
-    if (!consent1 || !consent2) {
-      setErrorMessage('Please check both consent checkboxes to proceed with the AI intake.');
-      return;
-    }
-    if (!patient) return;
+    if (!patient || isSubmitting) return;
 
     setIsSubmitting(true);
+    setIsAgreedAndAdvancing(true);
     setErrorMessage('');
 
     try {
       const record = await ConsentService.recordConsent({
         patient_id: patient.id,
-        data_collection_consent: consent1,
-        data_sharing_consent: consent2,
+        data_collection_consent: true,
+        data_sharing_consent: true,
       });
 
       setConsent(record);
-      router.push('/kiosk/dashboard');
+      await updateWorkflowState('CONSENT_COMPLETED', 3);
+
+      // Automatic step transition after brief visual confirmation (600ms)
+      setTimeout(() => {
+        router.push('/kiosk/conversation');
+      }, 600);
     } catch (e: any) {
+      setIsAgreedAndAdvancing(false);
       setErrorMessage(e.message || 'Failed to save consent. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleToggleConsent1 = () => {
+    const nextVal = !consent1;
+    setConsent1(nextVal);
+    if (nextVal && consent2) {
+      handleAcceptConsent();
+    }
+  };
+
+  const handleToggleConsent2 = () => {
+    const nextVal = !consent2;
+    setConsent2(nextVal);
+    if (nextVal && consent1) {
+      handleAcceptConsent();
+    }
+  };
+
   const handleConfirmDecline = () => {
     setShowDeclineModal(false);
     resetKioskSession();
-    router.push('/kiosk/welcome');
+    router.push('/');
   };
 
   if (sessionLoading || !patient) {
@@ -142,13 +164,21 @@ export default function DigitalConsentPage() {
           </div>
         )}
 
+        {/* Visual auto-advance state */}
+        {isAgreedAndAdvancing && (
+          <div className="p-4 bg-emerald-50 border-2 border-emerald-300 text-emerald-800 font-bold rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <span>Consent saved! Starting your Health Conversation automatically...</span>
+          </div>
+        )}
+
         {/* Consent Checkbox 1 */}
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setConsent1(!consent1)}
+          onClick={handleToggleConsent1}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') setConsent1(!consent1);
+            if (e.key === 'Enter' || e.key === ' ') handleToggleConsent1();
           }}
           className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 select-none ${
             consent1
@@ -173,9 +203,9 @@ export default function DigitalConsentPage() {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setConsent2(!consent2)}
+          onClick={handleToggleConsent2}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') setConsent2(!consent2);
+            if (e.key === 'Enter' || e.key === ' ') handleToggleConsent2();
           }}
           className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 select-none ${
             consent2
@@ -223,13 +253,13 @@ export default function DigitalConsentPage() {
         <KioskButton
           size="large"
           variant="success"
-          disabled={!bothChecked}
+          disabled={!bothChecked || isAgreedAndAdvancing}
           isLoading={isSubmitting}
           onClick={handleAcceptConsent}
           icon={<ChevronRight className="w-7 h-7 stroke-[3]" />}
           className="w-full sm:w-auto min-w-[280px]"
         >
-          {t.consent.acceptBtn}
+          {isAgreedAndAdvancing ? 'Saving & Starting...' : t.consent.acceptBtn}
         </KioskButton>
       </div>
 

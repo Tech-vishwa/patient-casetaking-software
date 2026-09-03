@@ -87,8 +87,8 @@ export default function MedicalDocumentsPage() {
 
   const handleProceedToSummary = async () => {
     if (session) {
-      await IntakeSessionService.updateProgress(session.id, 3, 'summary_ready');
-      await advanceSessionStep(3);
+      await IntakeSessionService.updateWorkflowState(session.id, 'SUMMARY_READY', 5, 'summary_ready');
+      await advanceSessionStep(5);
     }
     router.push('/kiosk/summary');
   };
@@ -174,22 +174,34 @@ export default function MedicalDocumentsPage() {
         <KioskButton
           variant="outline"
           size="default"
-          onClick={() => router.push('/kiosk/dashboard')}
+          onClick={() => router.push('/kiosk/conversation')}
           icon={<ArrowLeft className="w-6 h-6" />}
           iconPosition="left"
         >
           {t.common.back}
         </KioskButton>
 
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          {documents.length === 0 && (
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          {documents.length === 0 ? (
             <KioskButton
               variant="outline"
-              size="default"
+              size="large"
               onClick={handleProceedToSummary}
+              className="w-full sm:w-auto"
             >
               {t.documents.skipDocuments}
             </KioskButton>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('document-upload-input');
+                el?.click();
+              }}
+              className="w-full sm:w-auto px-6 py-4 rounded-2xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-base transition flex items-center justify-center gap-2"
+            >
+              <span>➕ Add Another Document</span>
+            </button>
           )}
 
           <KioskButton
@@ -197,7 +209,7 @@ export default function MedicalDocumentsPage() {
             variant="primary"
             onClick={handleProceedToSummary}
             icon={<ChevronRight className="w-8 h-8 stroke-[3]" />}
-            className="flex-1 sm:flex-initial min-w-[320px]"
+            className="w-full sm:w-auto min-w-[280px]"
           >
             {t.documents.proceedToSummary}
           </KioskButton>

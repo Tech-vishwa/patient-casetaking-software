@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { usePatientSession } from '@/context/PatientSessionContext';
@@ -8,26 +8,40 @@ import { PatientService } from '@/services/patientService';
 import { KioskButton } from '@/components/kiosk/KioskButton';
 import { AudioPromptButton } from '@/components/kiosk/AudioPromptButton';
 import { KioskProgress } from '@/components/kiosk/KioskProgress';
-import { Check, ChevronRight, ArrowLeft, Globe2, Sparkles } from 'lucide-react';
+import { Check, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { PreferredLanguage } from '@/types/patient';
 
 export default function LanguageSelectionPage() {
   const router = useRouter();
   const { language, setLanguage, t, availableLanguages } = useLanguage();
   const { patient, setPatient } = usePatientSession();
+  const [selectedLang, setSelectedLang] = useState<PreferredLanguage | null>(null);
+  const [isAdvancing, setIsAdvancing] = useState<boolean>(false);
 
   const narrationText = `${t.language.selectTitle}. ${t.language.selectSubtitle}.`;
 
   const handleSelectLanguage = async (code: PreferredLanguage) => {
+    setSelectedLang(code);
     setLanguage(code);
-    if (patient) {
-      await PatientService.updateLanguage(patient.id, code);
-      setPatient({ ...patient, preferred_language: code });
-    }
-  };
+    setIsAdvancing(true);
 
-  const handleContinue = () => {
-    router.push('/kiosk/identification');
+    if (patient) {
+      try {
+        await PatientService.updateLanguage(patient.id, code);
+        setPatient({ ...patient, preferred_language: code });
+      } catch (err) {
+        console.warn('Language update error:', err);
+      }
+    }
+
+    // Automatic step transition after brief visual confirmation (600ms)
+    setTimeout(() => {
+      if (patient) {
+        router.push('/kiosk/consent');
+      } else {
+        router.push('/kiosk/identification');
+      }
+    }, 600);
   };
 
   return (
@@ -49,10 +63,18 @@ export default function LanguageSelectionPage() {
         <AudioPromptButton textToSpeak={narrationText} />
       </div>
 
+      {/* Visual Transition Feedback Banner */}
+      {isAdvancing && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 font-bold flex items-center justify-center gap-2 animate-in fade-in">
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+          <span>Language selected! Proceeding to patient identification...</span>
+        </div>
+      )}
+
       {/* Language Selection Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
         {availableLanguages.map((lang) => {
-          const isSelected = language === lang.code;
+          const isSelected = selectedLang ? selectedLang === lang.code : language === lang.code;
 
           return (
             <div
@@ -87,11 +109,11 @@ export default function LanguageSelectionPage() {
               <div
                 className={`mt-4 px-4 py-1.5 rounded-full text-sm font-bold ${
                   isSelected
-                    ? 'bg-sky-100 text-kiosk-blue-dark'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                     : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                {isSelected ? 'Selected • தேர்ந்தெடுக்கப்பட்டது' : 'Tap to Select'}
+                {isSelected ? '✓ Selected • Proceeding...' : 'Tap to Select'}
               </div>
             </div>
           );
@@ -109,20 +131,16 @@ export default function LanguageSelectionPage() {
         <KioskButton
           variant="outline"
           size="default"
-          onClick={() => router.push('/kiosk/welcome')}
+          onClick={() => router.push('/')}
           icon={<ArrowLeft className="w-6 h-6" />}
           iconPosition="left"
         >
           {t.common.back}
         </KioskButton>
 
-        <KioskButton
-          size="large"
-          onClick={handleContinue}
-          icon={<ChevronRight className="w-7 h-7 stroke-[3]" />}
-        >
-          {t.common.continue}
-        </KioskButton>
+        <p className="text-xs font-semibold text-slate-400">
+          Tap any language card to automatically advance.
+        </p>
       </div>
     </div>
   );

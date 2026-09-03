@@ -43,7 +43,7 @@ export const KioskHeader: React.FC = () => {
     <header className="w-full bg-white/95 backdrop-blur-md border-b-2 border-slate-200 py-4 px-6 sm:px-10 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Hospital Branding */}
-        <div className="flex items-center gap-4 cursor-pointer" onClick={() => !isWelcome && router.push('/kiosk/welcome')}>
+        <div className="flex items-center gap-4 cursor-pointer" onClick={() => router.push('/')}>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-kiosk-blue to-kiosk-navy flex items-center justify-center text-white shadow-md shadow-sky-500/20">
             <Activity className="w-8 h-8 stroke-[2.5]" />
           </div>
@@ -51,7 +51,7 @@ export const KioskHeader: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-black text-kiosk-navy tracking-tight">{t.common.appName}</h1>
               <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Segments 1-4
+                Production Kiosk
               </span>
             </div>
             <p className="text-sm font-semibold text-slate-500">{t.common.hospitalName}</p>
@@ -61,7 +61,7 @@ export const KioskHeader: React.FC = () => {
         {/* Right Accessibility & Action Bar */}
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
-            href="/doctor/queue"
+            href="/doctor/dashboard"
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border border-slate-200"
             title="Doctor & Staff Review Portal"
           >

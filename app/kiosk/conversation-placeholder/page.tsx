@@ -141,11 +141,19 @@ export default function ConversationPlaceholderPage() {
         <KioskButton
           variant="outline"
           size="default"
-          onClick={() => router.push('/kiosk/dashboard')}
+          onClick={() => router.push('/patient/dashboard')}
           icon={<ArrowLeft className="w-6 h-6" />}
           iconPosition="left"
         >
           {t.conversationPlaceholder.backToDashboard}
+        </KioskButton>
+
+        <KioskButton
+          variant="primary"
+          size="large"
+          onClick={() => router.push('/kiosk/conversation')}
+        >
+          <span>Start AI Health Interview →</span>
         </KioskButton>
       </div>
     </div>
