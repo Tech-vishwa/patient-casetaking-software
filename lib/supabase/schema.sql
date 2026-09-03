@@ -58,10 +58,13 @@ CREATE TABLE IF NOT EXISTS intake_sessions (
             'completed'
         )
     ),
-    current_step INTEGER NOT NULL DEFAULT 1 CHECK (current_step BETWEEN 1 AND 3),
+    current_step INTEGER NOT NULL DEFAULT 1 CHECK (current_step BETWEEN 1 AND 5),
+    consultation_mode VARCHAR(30) NOT NULL DEFAULT 'MODERN_MEDICINE' CHECK (consultation_mode IN ('MODERN_MEDICINE', 'AYUSH')),
     started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS idx_intake_sessions_mode ON intake_sessions(consultation_mode);
 
 CREATE INDEX IF NOT EXISTS idx_intake_sessions_patient ON intake_sessions(patient_id);
 CREATE INDEX IF NOT EXISTS idx_intake_sessions_status ON intake_sessions(status);
@@ -289,6 +292,39 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO users (id, email, full_name, role, department)
 VALUES
     ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'doctor@ayushman.gov.in', 'Dr. S. K. Venkatraman, MD', 'doctor', 'General & Internal Medicine'),
-    ('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'admin@ayushman.gov.in', 'Hospital Chief Medical Administrator', 'admin', 'Hospital Administration')
+    ('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'admin@ayushman.gov.in', 'Hospital Chief Medical Administrator', 'admin', 'Hospital Administration'),
+    ('f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a66', 'ayush@ayushman.gov.in', 'Vaidya Ananya Nambiar, BAMS, MD (Ayu)', 'doctor', 'Ayurveda & Panchakarma Department')
 ON CONFLICT (id) DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 10. AYUSH / AYURVEDIC ASSESSMENTS TABLE (PART 12)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ayush_assessments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    intake_session_id UUID NOT NULL REFERENCES intake_sessions(id) ON DELETE CASCADE,
+    presenting_complaint TEXT NOT NULL,
+    duration VARCHAR(100),
+    previous_treatment TEXT,
+    current_symptoms JSONB NOT NULL DEFAULT '[]'::jsonb,
+    prakriti JSONB NOT NULL DEFAULT '{}'::jsonb,
+    vikriti JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ahara_assessment JSONB NOT NULL DEFAULT '{}'::jsonb,
+    vihara_assessment JSONB NOT NULL DEFAULT '{}'::jsonb,
+    sara TEXT,
+    samhanana TEXT,
+    pramana TEXT,
+    satmya TEXT,
+    sattva TEXT,
+    ahara_shakti TEXT,
+    vyayama_shakti TEXT,
+    vaya TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ayush_assessments_session ON ayush_assessments(intake_session_id);
+CREATE INDEX IF NOT EXISTS idx_ayush_assessments_patient ON ayush_assessments(patient_id);
+ALTER TABLE ayush_assessments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public ayush assessments access" ON ayush_assessments FOR ALL USING (true) WITH CHECK (true);
 

@@ -6,8 +6,11 @@ export type IntakeSessionStatus =
   | 'summary_ready'
   | 'completed';
 
+export type ConsultationMode = 'MODERN_MEDICINE' | 'AYUSH';
+
 export type WorkflowState =
   | 'ONBOARDING'
+  | 'CONSULTATION_MODE_SELECTED'
   | 'LANGUAGE_SELECTED'
   | 'IDENTIFIED'
   | 'CONSENT_COMPLETED'
@@ -27,6 +30,7 @@ export interface IntakeSession {
   patient_id: string;
   status: IntakeSessionStatus;
   workflow_state?: WorkflowState;
+  consultation_mode?: ConsultationMode;
   current_step: number;
   draft_history?: any;
   started_at: string;
@@ -37,6 +41,7 @@ export interface CreateIntakeSessionInput {
   patient_id: string;
   status?: IntakeSessionStatus;
   workflow_state?: WorkflowState;
+  consultation_mode?: ConsultationMode;
   current_step?: number;
   draft_history?: any;
 }

@@ -1,3 +1,5 @@
+import { ConsultationMode } from './intakeSession';
+
 export type QueuePriority = 'critical' | 'high' | 'normal';
 
 export type PatientReviewStatus = 'pending' | 'reviewed' | 'modified' | 'approved' | 'rejected';
@@ -11,6 +13,7 @@ export interface PatientQueueItem {
   phone: string;
   abhaId?: string | null;
   chiefComplaint: string;
+  consultationMode: ConsultationMode;
   priority: QueuePriority;
   hasRedFlag: boolean;
   redFlagCategories: string[];
@@ -25,4 +28,5 @@ export interface QueueFilterOptions {
   searchQuery?: string;
   priorityFilter?: 'all' | 'critical' | 'high' | 'normal';
   statusFilter?: 'all' | 'pending' | 'approved' | 'modified' | 'rejected';
+  consultationModeFilter?: 'all' | 'MODERN_MEDICINE' | 'AYUSH';
 }

@@ -222,6 +222,19 @@ export interface TranslationDictionary {
     successModalBody: string;
     returnToDesk: string;
   };
+  consultationMode: {
+    title: string;
+    subtitle: string;
+    modernMedicineTitle: string;
+    modernMedicineSubtitle: string;
+    modernMedicineDesc: string;
+    modernMedicineBtn: string;
+    ayushTitle: string;
+    ayushSubtitle: string;
+    ayushDesc: string;
+    ayushBtn: string;
+    selectedBadge: string;
+  };
 }
 
 export interface LanguageOption {

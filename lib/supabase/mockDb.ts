@@ -1,12 +1,17 @@
 import { Patient, CreatePatientInput } from '@/types/patient';
 import { ConsentRecord, CreateConsentInput } from '@/types/consent';
-import { IntakeSession, CreateIntakeSessionInput } from '@/types/intakeSession';
+import { IntakeSession, CreateIntakeSessionInput, ConsultationMode } from '@/types/intakeSession';
 import {
   ConversationMessage,
   StructuredClinicalHistory,
   CreateClinicalHistoryInput,
   RedFlagAlert,
 } from '@/types/clinical';
+import {
+  AyushAssessment,
+  CreateAyushAssessmentInput,
+  AyushSummaryStructured,
+} from '@/types/ayush';
 import {
   MedicalDocument,
   CreateMedicalDocumentInput,
@@ -15,6 +20,7 @@ import {
 import {
   StructuredClinicalSummary,
   CreateClinicalSummaryInput,
+  ClinicalSummaryStructured,
 } from '@/types/summary';
 import { DoctorUser } from '@/types/user';
 import { SummaryReview, CreateSummaryReviewInput } from '@/types/review';
@@ -27,6 +33,7 @@ const STORAGE_KEYS = {
   SESSIONS: 'medikiosk_intake_sessions_v1',
   CONVERSATIONS: 'medikiosk_conversations_v1',
   CLINICAL_HISTORY: 'medikiosk_clinical_history_v1',
+  AYUSH_ASSESSMENTS: 'medikiosk_ayush_assessments_v1',
   RED_FLAGS: 'medikiosk_red_flags_v1',
   DOCUMENTS: 'medikiosk_medical_documents_v1',
   EXTRACTIONS: 'medikiosk_document_extractions_v1',
@@ -73,6 +80,18 @@ const INITIAL_PATIENTS: Patient[] = [
     created_at: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
   },
+  {
+    id: 'demo-pat-004',
+    full_name: 'Lakshmi Devi',
+    age: 48,
+    gender: 'female',
+    phone: '9840998877',
+    password: '123456',
+    abha_id: '91-4444-3333-2222',
+    preferred_language: 'ta',
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  },
 ];
 
 const INITIAL_USERS: DoctorUser[] = [
@@ -86,6 +105,17 @@ const INITIAL_USERS: DoctorUser[] = [
     hospital_name: 'District Government Hospital',
     registration_number: 'MCI-TN-2012-48291',
     hospital_room: 'Room 4',
+  },
+  {
+    id: 'doc-002',
+    doctor_id: 'AYUSH-102',
+    email: 'ayush@ayushman.gov.in',
+    full_name: 'Vaidya Ananya Nambiar, BAMS, MD (Ayu)',
+    role: 'doctor',
+    department: 'Ayurveda & Panchakarma Department',
+    hospital_name: 'District Government Hospital & Ayush Wing',
+    registration_number: 'AYUSH-KL-2015-8831',
+    hospital_room: 'Ayush OPD Room 2',
   },
   {
     id: 'admin-001',
@@ -105,6 +135,7 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     patient_id: 'demo-pat-001',
     status: 'summary_ready',
     workflow_state: 'SUMMARY_READY',
+    consultation_mode: 'MODERN_MEDICINE',
     current_step: 5,
     started_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
@@ -114,6 +145,7 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     patient_id: 'demo-pat-002',
     status: 'summary_ready',
     workflow_state: 'SUMMARY_READY',
+    consultation_mode: 'MODERN_MEDICINE',
     current_step: 5,
     started_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
@@ -123,9 +155,20 @@ const INITIAL_SESSIONS: IntakeSession[] = [
     patient_id: 'demo-pat-003',
     status: 'summary_ready',
     workflow_state: 'SUMMARY_READY',
+    consultation_mode: 'MODERN_MEDICINE',
     current_step: 5,
     started_at: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
     completed_at: new Date(Date.now() - 65 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'demo-sess-004',
+    patient_id: 'demo-pat-004',
+    status: 'summary_ready',
+    workflow_state: 'SUMMARY_READY',
+    consultation_mode: 'AYUSH',
+    current_step: 5,
+    started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    completed_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
   },
 ];
 

@@ -1,6 +1,7 @@
 export * from './patient';
 export * from './consent';
 export * from './intakeSession';
+export * from './ayush';
 export * from './i18n';
 export * from './clinical';
 export * from './document';

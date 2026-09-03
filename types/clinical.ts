@@ -1,4 +1,6 @@
-export type ClinicalStage =
+import { AyushStage } from './ayush';
+
+export type ModernMedicineStage =
   | 'chief_complaint'
   | 'hpi'
   | 'past_medical_history'
@@ -8,6 +10,8 @@ export type ClinicalStage =
   | 'family_history'
   | 'personal_history'
   | 'completed';
+
+export type ClinicalStage = ModernMedicineStage | AyushStage;
 
 export type QuestionInputType = 'text' | 'multiple_choice' | 'scale' | 'yes_no_unsure';
 

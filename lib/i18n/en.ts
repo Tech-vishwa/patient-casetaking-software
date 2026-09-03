@@ -222,4 +222,17 @@ export const en: TranslationDictionary = {
     successModalBody: 'Your clinical summary has been delivered to your consulting physician. Please proceed to the waiting area or Doctor Consultation Room #4.',
     returnToDesk: 'Finish & Return to Start',
   },
+  consultationMode: {
+    title: 'Select Consultation Type',
+    subtitle: 'Choose how you wish to be evaluated by our healthcare professionals today.',
+    modernMedicineTitle: 'MODERN MEDICINE',
+    modernMedicineSubtitle: 'General Clinical History',
+    modernMedicineDesc: 'For general medical consultation, symptoms, previous illnesses, medications, allergies, and medical history.',
+    modernMedicineBtn: 'Select Modern Medicine',
+    ayushTitle: 'AYUSH / AYURVEDA',
+    ayushSubtitle: 'Ayurvedic Clinical Assessment',
+    ayushDesc: 'For Ayurvedic consultation including Prakriti, lifestyle, diet, and personalized health assessment.',
+    ayushBtn: 'Select AYUSH / Ayurveda',
+    selectedBadge: 'Selected • Proceeding...',
+  },
 };
