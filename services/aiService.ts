@@ -595,7 +595,8 @@ export class AIService {
     questionIndex: number,
     complaintCategory: ComplaintCategory,
     lang: PreferredLanguage = 'en',
-    consultationMode: ConsultationMode = 'MODERN_MEDICINE'
+    consultationMode: ConsultationMode = 'MODERN_MEDICINE',
+    existingAnswers?: Record<string, string>
   ): ClinicalQuestion | null {
     if (consultationMode === 'AYUSH') {
       return AyushService.getNextQuestion(currentStage as AyushStage, questionIndex, lang);
@@ -603,8 +604,22 @@ export class AIService {
 
     if (currentStage === 'hpi') {
       const hpiQuestions = HPI_TEMPLATES[complaintCategory] || HPI_TEMPLATES.general;
-      if (questionIndex < hpiQuestions.length) {
-        const q = hpiQuestions[questionIndex];
+      // Cap follow-up HPI questions to maximum 4 (3 to 5 questions including chief complaint)
+      const cappedLength = Math.min(hpiQuestions.length, 4);
+      let targetIdx = questionIndex;
+
+      // Deduplication: if field was already answered in existingAnswers, skip to next question
+      while (targetIdx < cappedLength) {
+        const candidate = hpiQuestions[targetIdx];
+        if (existingAnswers && candidate.fieldKey && existingAnswers[candidate.fieldKey]) {
+          targetIdx++;
+        } else {
+          break;
+        }
+      }
+
+      if (targetIdx < cappedLength) {
+        const q = hpiQuestions[targetIdx];
         return {
           id: q.id,
           stage: 'hpi',

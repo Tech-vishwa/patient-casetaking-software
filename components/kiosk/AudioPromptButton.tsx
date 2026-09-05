@@ -22,7 +22,7 @@ export const AudioPromptButton: React.FC<AudioPromptButtonProps> = ({
     if (isSpeaking) {
       stopSpeaking();
     } else {
-      speakText(textToSpeak);
+      speakText(textToSpeak, true);
     }
   };
 

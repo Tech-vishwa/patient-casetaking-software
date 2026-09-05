@@ -11,35 +11,56 @@ export interface ISpeechService {
   stopListening(): void;
   getTranscript(): string;
   setLanguage(language: string): void;
+  isListening(): boolean;
 }
 
 /**
  * Browser Web Speech API Speech Recognition Adapter
- * Extensible for Indian languages and modular for future Bhashini / Whisper adapters.
+ * Extensible for Indian languages (en-IN, ta-IN, hi-IN) with fallback and permission handling.
  */
 export class BrowserSpeechService implements ISpeechService {
   private recognition: any = null;
   private currentTranscript: string = '';
   private isListeningState: boolean = false;
   private currentLanguage: string = 'en-IN';
+  private activeListener: SpeechRecognitionListener | null = null;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+    this.initRecognition();
+  }
 
-      if (SpeechRecognition) {
+  private initRecognition(): boolean {
+    if (typeof window === 'undefined') return false;
+
+    if (this.recognition) return true;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
         this.recognition = new SpeechRecognition();
-        this.recognition.continuous = true;
+        this.recognition.continuous = false; // Complete utterance mode for reliable kiosk response
         this.recognition.interimResults = true;
         this.recognition.maxAlternatives = 1;
+        this.recognition.lang = this.currentLanguage;
+        return true;
+      } catch (e) {
+        console.warn('SpeechRecognition initialization error:', e);
+        this.recognition = null;
+        return false;
       }
     }
+    return false;
   }
 
   isSupported(): boolean {
-    return this.recognition !== null;
+    return this.initRecognition();
+  }
+
+  isListening(): boolean {
+    return this.isListeningState;
   }
 
   setLanguage(languageCode: string): void {
@@ -57,26 +78,34 @@ export class BrowserSpeechService implements ISpeechService {
   }
 
   startListening(listener: SpeechRecognitionListener, languageCode?: string): void {
+    this.activeListener = listener;
+
     if (languageCode) {
       this.setLanguage(languageCode);
     }
 
-    if (!this.recognition) {
+    if (!this.initRecognition() || !this.recognition) {
       if (listener.onError) {
-        listener.onError('Speech recognition is not supported in this browser. Please use text input or touchscreen.');
+        listener.onError('Microphone access is unavailable. You can type your answer or use Quick Options.');
       }
       return;
     }
 
+    // If already listening, stop before starting anew
     if (this.isListeningState) {
-      return;
+      try {
+        this.recognition.abort();
+      } catch {}
+      this.isListeningState = false;
     }
 
     this.currentTranscript = '';
 
     this.recognition.onstart = () => {
       this.isListeningState = true;
-      if (listener.onStart) listener.onStart();
+      if (this.activeListener?.onStart) {
+        this.activeListener.onStart();
+      }
     };
 
     this.recognition.onresult = (event: any) => {
@@ -97,22 +126,33 @@ export class BrowserSpeechService implements ISpeechService {
         this.currentTranscript = fullCurrent;
       }
 
-      if (listener.onResult) {
-        listener.onResult(this.currentTranscript, Boolean(finalTranscript));
+      if (this.activeListener?.onResult) {
+        this.activeListener.onResult(this.currentTranscript, Boolean(finalTranscript));
       }
     };
 
     this.recognition.onerror = (event: any) => {
       this.isListeningState = false;
-      const errorMsg = event.error === 'not-allowed'
-        ? 'Microphone permission was denied. Please allow microphone access or switch to text input.'
-        : `Speech recognition error: ${event.error}`;
-      if (listener.onError) listener.onError(errorMsg);
+      let errorMsg = `Speech recognition error: ${event.error}`;
+
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        errorMsg = 'Microphone access is unavailable. You can type your answer or use Quick Options.';
+      } else if (event.error === 'no-speech') {
+        errorMsg = 'No speech was detected. Please tap the microphone and speak again, or use Quick Options.';
+      } else if (event.error === 'network') {
+        errorMsg = 'Network error during voice recognition. You can type your answer or use Quick Options.';
+      }
+
+      if (this.activeListener?.onError) {
+        this.activeListener.onError(errorMsg);
+      }
     };
 
     this.recognition.onend = () => {
       this.isListeningState = false;
-      if (listener.onEnd) listener.onEnd();
+      if (this.activeListener?.onEnd) {
+        this.activeListener.onEnd();
+      }
     };
 
     try {
@@ -120,12 +160,17 @@ export class BrowserSpeechService implements ISpeechService {
       this.recognition.start();
     } catch (err: any) {
       this.isListeningState = false;
-      if (listener.onError) listener.onError(err.message || 'Could not start speech recognition');
+      const message = err.name === 'NotAllowedError'
+        ? 'Microphone access is unavailable. You can type your answer or use Quick Options.'
+        : (err.message || 'Could not start speech recognition. Please use Quick Options.');
+      if (listener.onError) {
+        listener.onError(message);
+      }
     }
   }
 
   stopListening(): void {
-    if (this.recognition && this.isListeningState) {
+    if (this.recognition) {
       try {
         this.recognition.stop();
       } catch {}

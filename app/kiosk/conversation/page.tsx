@@ -15,12 +15,12 @@ import { InputMode } from '@/components/kiosk/InputMode';
 import { ConversationProgress } from '@/components/kiosk/ConversationProgress';
 import { RedFlagModal } from '@/components/kiosk/RedFlagModal';
 import { AudioPromptButton } from '@/components/kiosk/AudioPromptButton';
-import { Bot, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Bot, CheckCircle2, AlertTriangle, ShieldCheck, Volume2, VolumeX } from 'lucide-react';
 import { mockDb } from '@/lib/supabase/mockDb';
 
 export default function ConversationalHistoryPage() {
   const router = useRouter();
-  const { language, t, speakText } = useLanguage();
+  const { language, t, speakText, isVoiceGuidanceEnabled, toggleVoiceGuidance } = useLanguage();
   const { patient, session, consent, consultationMode, isLoading: sessionLoading, updateWorkflowState } = usePatientSession();
 
   const isAyush = consultationMode === 'AYUSH';
@@ -335,9 +335,16 @@ export default function ConversationalHistoryPage() {
       const field = currentQuestion.fieldKey || `hpi_${questionIndex}`;
       updatedData.hpi = { ...updatedData.hpi, [field]: answerText };
 
-      if (questionIndex + 1 < 3) {
+      // Limit HPI to essential questions (capped at 4 follow-ups max; 3-5 total questions including chief complaint)
+      const nextHpiQuestion =
+        questionIndex + 1 < 4
+          ? AIService.getNextQuestion('hpi', questionIndex + 1, nextCategory, language, 'MODERN_MEDICINE', updatedData.hpi)
+          : null;
+
+      if (nextHpiQuestion) {
         nextIndex = questionIndex + 1;
       } else {
+        // Essential HPI questions captured - smoothly advance to past medical history
         nextStage = 'past_medical_history';
         nextIndex = 0;
       }
@@ -395,7 +402,7 @@ export default function ConversationalHistoryPage() {
     }
 
     // Generate Next AI Question
-    const nextQ = AIService.getNextQuestion(nextStage, nextIndex, nextCategory, language, 'MODERN_MEDICINE');
+    const nextQ = AIService.getNextQuestion(nextStage, nextIndex, nextCategory, language, 'MODERN_MEDICINE', updatedData.hpi);
     if (nextQ) {
       setCurrentQuestion(nextQ);
       const aiMsg: ConversationMessage = {
@@ -457,11 +464,37 @@ export default function ConversationalHistoryPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <AudioPromptButton textToSpeak={currentQuestion.question} />
+          {/* Voice Guidance Toggle */}
+          <button
+            type="button"
+            onClick={toggleVoiceGuidance}
+            title={isVoiceGuidanceEnabled ? 'Turn Voice Guidance Off' : 'Turn Voice Guidance On'}
+            className={`px-3 py-2 rounded-full border font-bold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-sm ${
+              isVoiceGuidanceEnabled
+                ? 'bg-sky-100 text-sky-900 border-sky-300 hover:bg-sky-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+            }`}
+          >
+            {isVoiceGuidanceEnabled ? (
+              <>
+                <Volume2 className="w-4 h-4 text-sky-700" />
+                <span>Voice On</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-4 h-4 text-slate-500" />
+                <span>Voice Off</span>
+              </>
+            )}
+          </button>
+
+          {/* Repeat Question Audio Prompt */}
+          <AudioPromptButton textToSpeak={currentQuestion.question} label="Repeat Question" />
+
           <button
             type="button"
             onClick={() => setShowExitConfirm(true)}
-            className="px-3.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs transition"
+            className="px-3.5 py-2 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs transition"
           >
             {t.conversation.exitInterview}
           </button>
