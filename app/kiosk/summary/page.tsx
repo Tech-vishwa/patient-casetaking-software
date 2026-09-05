@@ -83,10 +83,9 @@ export default function PatientSummaryReviewPage() {
 
     try {
       await IntakeSessionService.completeSession(session.id);
-      setShowSuccessModal(true);
+      router.push('/kiosk/token');
     } catch (e) {
       console.error('Failed to complete session', e);
-    } finally {
       setIsFinishing(false);
     }
   };
@@ -544,7 +543,7 @@ export default function PatientSummaryReviewPage() {
             isAyush ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-kiosk-blue hover:bg-sky-600'
           }`}
         >
-          {isFinishing ? t.summary.savingSummary : t.summary.confirmAndFinishBtn}
+          {isFinishing ? t.summary.savingSummary : 'Generate Consultation Token & Finish →'}
         </KioskButton>
       </div>
 

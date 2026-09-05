@@ -75,37 +75,37 @@ export default function WelcomePortalPage() {
 
         {/* Primary Role Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* 1. Patient Login */}
+          {/* 1. Patient Intake Kiosk */}
           <div
             role="button"
             tabIndex={0}
-            onClick={() => router.push('/patient/login')}
+            onClick={() => router.push('/kiosk/welcome')}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') router.push('/patient/login');
+              if (e.key === 'Enter' || e.key === ' ') router.push('/kiosk/welcome');
             }}
             className="group relative p-8 sm:p-10 rounded-3xl bg-white border-3 border-slate-200 hover:border-kiosk-blue shadow-lg hover:shadow-2xl transition-all duration-200 cursor-pointer flex flex-col justify-between text-left ring-4 ring-transparent hover:ring-sky-100 active:scale-[0.99]"
           >
             <div>
               <div className="w-16 h-16 rounded-2xl bg-sky-100 text-kiosk-blue flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
-                <User className="w-9 h-9 stroke-[2.5]" />
+                <Activity className="w-9 h-9 stroke-[2.5]" />
               </div>
 
               <span className="text-xs font-black uppercase tracking-wider text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
-                Patient Self-Service
+                Hospital OPD Self-Service
               </span>
 
               <h3 className="text-3xl font-black text-kiosk-navy mt-3 mb-2">
-                👤 Patient Login
+                🏥 Start Patient Intake
               </h3>
 
               <p className="text-base text-slate-600 font-medium leading-relaxed">
-                Log in with your registered mobile number to start or resume your clinical intake session.
+                Start your self-service clinical intake. Choose language, verify with ABHA or phone, and describe your symptoms.
               </p>
             </div>
 
             <div className="mt-8 flex items-center justify-between pt-4 border-t border-slate-100">
               <span className="text-sm font-bold text-kiosk-blue group-hover:underline">
-                Enter Patient Portal
+                Start Health Intake Now
               </span>
               <div className="w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center group-hover:translate-x-1 transition-transform shadow-md">
                 <ChevronRight className="w-6 h-6 stroke-[3]" />
@@ -155,19 +155,19 @@ export default function WelcomePortalPage() {
         {/* Secondary Quick Action Options */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/patient/register"
+            href="/patient/login"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-bold border-2 border-slate-200 shadow-sm transition active:scale-95 text-base"
           >
-            <UserPlus className="w-5 h-5 text-kiosk-blue" />
-            <span>New Patient? Register Here</span>
+            <User className="w-5 h-5 text-kiosk-blue" />
+            <span>Returning Patient? Login & View Records</span>
           </Link>
 
           <Link
-            href="/kiosk/welcome"
+            href="/patient/register"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-bold border-2 border-slate-200 shadow-sm transition active:scale-95 text-base"
           >
-            <Zap className="w-5 h-5 text-amber-500" />
-            <span>⚡ Walk-in Kiosk Mode (Instant Intake)</span>
+            <UserPlus className="w-5 h-5 text-emerald-600" />
+            <span>New Patient Registration</span>
           </Link>
         </div>
       </main>

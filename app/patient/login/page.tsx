@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Activity,
   ArrowLeft,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -210,9 +211,25 @@ export default function PatientLoginPage() {
 
       {/* Incomplete Session Prompt Modal */}
       {showIncompleteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-sky-300 space-y-6">
-            <div className="flex items-center gap-4">
+        <div
+          onClick={() => setShowIncompleteModal(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-sky-300 space-y-6 cursor-default"
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowIncompleteModal(false)}
+              aria-label="Close"
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition active:scale-95"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-4 pr-8">
               <div className="w-14 h-14 rounded-2xl bg-sky-100 text-kiosk-blue flex items-center justify-center flex-shrink-0">
                 <Activity className="w-8 h-8" />
               </div>
