@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST='{"services\\\\redFlagService.ts -> ./clinicalService":{"id":93,"files":[]}}';

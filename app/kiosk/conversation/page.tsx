@@ -422,7 +422,7 @@ export default function ConversationalHistoryPage() {
 
   const handleExitInterview = () => {
     setShowExitConfirm(false);
-    router.push('/patient/dashboard');
+    router.push('/');
   };
 
   if (sessionLoading || !patient) {

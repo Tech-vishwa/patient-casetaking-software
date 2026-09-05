@@ -30,6 +30,7 @@ const REVIEW_TEXTS: Record<
     processing: string;
     quickOptionsTitle: string;
     micUnavailable: string;
+    orCustomDivider: string;
   }
 > = {
   en: {
@@ -37,30 +38,33 @@ const REVIEW_TEXTS: Record<
     confirmBtn: 'Confirm & Send',
     editBtn: 'Edit Text',
     speakAgainBtn: 'Speak Again',
-    noSpeech: 'No speech detected. Please tap Speak again or choose a Quick Option below.',
+    noSpeech: 'No speech detected. Please tap Speak again or choose a Quick Option above.',
     processing: 'Processing your answer...',
     quickOptionsTitle: 'Quick Options (Touch to Select):',
-    micUnavailable: 'Microphone access is unavailable. You can type your answer or use Quick Options below.',
+    micUnavailable: 'Microphone access is unavailable. You can type your answer or use Quick Options above.',
+    orCustomDivider: 'Or Speak / Type Custom Answer',
   },
   ta: {
     confirmQuestion: 'நாங்கள் சரியாகப் புரிந்து கொண்டோமா?',
     confirmBtn: 'சரி, அனுப்புக',
     editBtn: 'மாற்றி எழுதுக',
     speakAgainBtn: 'மீண்டும் பேசுக',
-    noSpeech: 'குரல் கேட்கவில்லை. மீண்டும் பேசவும் அல்லது கீழே உள்ள விரைவு விருப்பங்களைத் தேர்ந்தெடுக்கவும்.',
+    noSpeech: 'குரல் கேட்கவில்லை. மீண்டும் பேசவும் அல்லது மேலே உள்ள விரைவு விருப்பங்களைத் தேர்ந்தெடுக்கவும்.',
     processing: 'செயலாக்குகிறது...',
     quickOptionsTitle: 'விரைவு விருப்பங்கள் (தேர்ந்தெடுக்க தொடவும்):',
-    micUnavailable: 'மைக்ரோஃபோன் அணுகல் கிடைக்கவில்லை. உங்கள் பதிலை தட்டச்சு செய்யலாம் அல்லது கீழே உள்ள விருப்பங்களை பயன்படுத்தலாம்.',
+    micUnavailable: 'மைக்ரோஃபோன் அணுகல் கிடைக்கவில்லை. உங்கள் பதிலை தட்டச்சு செய்யலாம் அல்லது மேலே உள்ள விருப்பங்களை பயன்படுத்தலாம்.',
+    orCustomDivider: 'அல்லது குரல் / தட்டச்சு மூலம் பதிலளிக்கவும்',
   },
   hi: {
     confirmQuestion: 'क्या हमने सही समझा?',
     confirmBtn: 'पुष्टि करें और भेजें',
     editBtn: 'संपादित करें',
     speakAgainBtn: 'फिर से बोलें',
-    noSpeech: 'कोई आवाज नहीं पहचानी गई। कृपया फिर से बोलें या नीचे दिए गए विकल्पों में से चुनें।',
+    noSpeech: 'कोई आवाज नहीं पहचानी गई। कृपया फिर से बोलें या ऊपर दिए गए विकल्पों में से चुनें।',
     processing: 'उत्तर की प्रक्रिया जारी है...',
     quickOptionsTitle: 'त्वरित विकल्प (चुनने के लिए टैप करें):',
-    micUnavailable: 'माइक्रोफ़ोन अनुपलब्ध है। आप अपना उत्तर टाइप कर सकते हैं या नीचे दिए गए विकल्पों का उपयोग कर सकते हैं।',
+    micUnavailable: 'माइक्रोफ़ोन अनुपलब्ध है। आप अपना उत्तर टाइप कर सकते हैं या ऊपर दिए गए विकल्पों का उपयोग कर सकते हैं।',
+    orCustomDivider: 'या बोलकर / टाइप करके उत्तर दें',
   },
 };
 
@@ -215,7 +219,104 @@ export const InputMode: React.FC<InputModeProps> = ({
   return (
     <div className="w-full bg-white rounded-3xl p-5 sm:p-7 border-2 border-slate-200 shadow-xl space-y-6">
       {/* ------------------------------------------------------------- */}
-      {/* 1. INPUT METHOD TABS (Voice Input vs Type Answer)             */}
+      {/* 1. QUICK OPTIONS (TOUCH / TAP) — PLACED ABOVE VOICE INPUT     */}
+      {/* ------------------------------------------------------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-amber-500">⚡</span>
+            <span>{localizedStrings.quickOptionsTitle}</span>
+          </p>
+          <span className="text-[11px] font-bold text-slate-400">Tap one to answer instantly</span>
+        </div>
+
+        {/* 1.A: Predefined / Fallback Option Chips */}
+        {displayOptions && displayOptions.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            {displayOptions.map((opt) => {
+              const isSelected = selectedTouchOption === opt;
+
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  disabled={effectiveDisabled}
+                  onClick={() => handleTouchOptionSelect(opt)}
+                  className={`p-4 rounded-2xl font-bold text-base sm:text-lg text-left border-2 transition-all active:scale-[0.98] shadow-sm flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-200 scale-[1.01]'
+                      : 'bg-slate-50 hover:bg-sky-50 text-kiosk-navy border-slate-200 hover:border-kiosk-blue'
+                  }`}
+                >
+                  <span className="leading-snug">{opt}</span>
+                  <span
+                    className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 ml-3 ${
+                      isSelected
+                        ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm'
+                        : 'bg-white border-slate-300 text-slate-400 group-hover:text-kiosk-blue'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 1.B: Numeric Severity Scale (1 to 10) for Pain Questions */}
+        {isScale && (
+          <div className="space-y-2">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                const isHigh = num >= 7;
+                const isMid = num >= 4 && num < 7;
+                const isSelected = selectedTouchOption === `${num}/10 Severity`;
+
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    disabled={effectiveDisabled}
+                    onClick={() => handleTouchOptionSelect(`${num}/10 Severity`)}
+                    className={`h-14 sm:h-16 rounded-2xl font-black text-xl sm:text-2xl transition active:scale-95 shadow-sm border-2 ${
+                      isSelected
+                        ? 'bg-emerald-600 border-emerald-700 text-white ring-4 ring-emerald-200 scale-105'
+                        : isHigh
+                        ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-600 hover:text-white'
+                        : isMid
+                        ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-xs font-bold text-slate-400 px-1">
+              <span>1 = Mild</span>
+              <span>5 = Moderate</span>
+              <span>10 = Severe</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Visual Divider */}
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-white px-3 text-slate-400 font-extrabold tracking-wider">
+            {localizedStrings.orCustomDivider}
+          </span>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 2. INPUT METHOD TABS (Voice Input vs Type Answer)             */}
       {/* ------------------------------------------------------------- */}
       <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
@@ -268,14 +369,14 @@ export const InputMode: React.FC<InputModeProps> = ({
           <div className="flex-1">
             <p>{speechError}</p>
             <p className="text-xs text-amber-700 font-medium mt-1">
-              Tap any Quick Option below or select &quot;Type Answer&quot; to continue.
+              Tap any Quick Option above or select &quot;Type Answer&quot; to continue.
             </p>
           </div>
         </div>
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. PRIMARY TAB CONTENT: VOICE INPUT                           */}
+      {/* 3. PRIMARY TAB CONTENT: VOICE INPUT                           */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'voice' && (
         <div>
@@ -410,7 +511,7 @@ export const InputMode: React.FC<InputModeProps> = ({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 2.B SECONDARY TAB CONTENT: TEXT INPUT (KEYBOARD)              */}
+      {/* 3.B SECONDARY TAB CONTENT: TEXT INPUT (KEYBOARD)              */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'text' && (
         <form onSubmit={handleTextSubmit} className="space-y-4">
@@ -438,91 +539,6 @@ export const InputMode: React.FC<InputModeProps> = ({
           </div>
         </form>
       )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* 3. QUICK OPTIONS (TOUCH / TAP) — ALWAYS AVAILABLE ON ALL MODES */}
-      {/* ------------------------------------------------------------- */}
-      <div className="pt-2 border-t border-slate-100">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs sm:text-sm font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-            <span>⚡</span>
-            <span>{localizedStrings.quickOptionsTitle}</span>
-          </p>
-          <span className="text-[11px] font-bold text-slate-400">Tap one to answer instantly</span>
-        </div>
-
-        {/* 3.A: Predefined / Fallback Option Chips */}
-        {displayOptions && displayOptions.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-            {displayOptions.map((opt) => {
-              const isSelected = selectedTouchOption === opt;
-
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  disabled={effectiveDisabled}
-                  onClick={() => handleTouchOptionSelect(opt)}
-                  className={`p-4 rounded-2xl font-bold text-base sm:text-lg text-left border-2 transition-all active:scale-[0.98] shadow-sm flex items-center justify-between ${
-                    isSelected
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-200 scale-[1.01]'
-                      : 'bg-slate-50 hover:bg-sky-50 text-kiosk-navy border-slate-200 hover:border-kiosk-blue'
-                  }`}
-                >
-                  <span className="leading-snug">{opt}</span>
-                  <span
-                    className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 ml-3 ${
-                      isSelected
-                        ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm'
-                        : 'bg-white border-slate-300 text-slate-400 group-hover:text-kiosk-blue'
-                    }`}
-                  >
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* 3.B: Numeric Severity Scale (1 to 10) for Pain Questions */}
-        {isScale && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-                const isHigh = num >= 7;
-                const isMid = num >= 4 && num < 7;
-                const isSelected = selectedTouchOption === `${num}/10 Severity`;
-
-                return (
-                  <button
-                    key={num}
-                    type="button"
-                    disabled={effectiveDisabled}
-                    onClick={() => handleTouchOptionSelect(`${num}/10 Severity`)}
-                    className={`h-14 sm:h-16 rounded-2xl font-black text-xl sm:text-2xl transition active:scale-95 shadow-sm border-2 ${
-                      isSelected
-                        ? 'bg-emerald-600 border-emerald-700 text-white ring-4 ring-emerald-200 scale-105'
-                        : isHigh
-                        ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-600 hover:text-white'
-                        : isMid
-                        ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white'
-                        : 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white'
-                    }`}
-                  >
-                    {num}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex justify-between text-xs font-bold text-slate-400 px-1">
-              <span>1 = Mild</span>
-              <span>5 = Moderate</span>
-              <span>10 = Severe</span>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

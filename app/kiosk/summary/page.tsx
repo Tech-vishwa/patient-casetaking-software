@@ -93,8 +93,18 @@ export default function PatientSummaryReviewPage() {
 
   const handleReturnToDesk = () => {
     resetKioskSession();
-    router.push('/patient/dashboard');
+    router.push('/');
   };
+
+  // Auto-backtrack to home page after sending summary (8-second fallback)
+  useEffect(() => {
+    if (showSuccessModal) {
+      const timer = setTimeout(() => {
+        handleReturnToDesk();
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal]);
 
   if (sessionLoading || !patient) {
     return (
