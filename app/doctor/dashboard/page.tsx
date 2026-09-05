@@ -32,6 +32,7 @@ export default function DoctorDashboardPage() {
   const [queue, setQueue] = useState<PatientQueueItem[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'critical' | 'high' | 'normal'>('all');
+  const [consultationModeFilter, setConsultationModeFilter] = useState<'all' | 'MODERN_MEDICINE' | 'AYUSH'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Auth Guard
@@ -47,6 +48,7 @@ export default function DoctorDashboardPage() {
       const items = await DoctorQueueService.getQueue({
         searchQuery,
         priorityFilter,
+        consultationModeFilter,
       });
       setQueue(items);
     } catch (err) {
@@ -60,7 +62,7 @@ export default function DoctorDashboardPage() {
     if (isAuthenticated) {
       loadQueue();
     }
-  }, [isAuthenticated, searchQuery, priorityFilter]);
+  }, [isAuthenticated, searchQuery, priorityFilter, consultationModeFilter]);
 
   const handleLogout = () => {
     logout();
@@ -220,6 +222,45 @@ export default function DoctorDashboardPage() {
                 <span>Normal Queue ({normalCount})</span>
               </button>
 
+              {/* Consultation Mode Filter Tabs */}
+              <div className="h-6 w-px bg-slate-300 mx-1 hidden sm:block" />
+
+              <button
+                type="button"
+                onClick={() => setConsultationModeFilter('all')}
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition whitespace-nowrap ${
+                  consultationModeFilter === 'all'
+                    ? 'bg-kiosk-navy text-white shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                All Modes
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConsultationModeFilter('MODERN_MEDICINE')}
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition whitespace-nowrap ${
+                  consultationModeFilter === 'MODERN_MEDICINE'
+                    ? 'bg-sky-600 text-white shadow-sm'
+                    : 'bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200'
+                }`}
+              >
+                🏥 Modern Medicine
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConsultationModeFilter('AYUSH')}
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition whitespace-nowrap ${
+                  consultationModeFilter === 'AYUSH'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                }`}
+              >
+                🪷 AYUSH / Ayurveda
+              </button>
+
               <button
                 type="button"
                 onClick={loadQueue}
@@ -261,6 +302,7 @@ export default function DoctorDashboardPage() {
               {queue.map((item) => {
                 const isCritical = item.priority === 'critical';
                 const isHigh = item.priority === 'high';
+                const isAyushItem = item.consultationMode === 'AYUSH';
 
                 return (
                   <div
@@ -270,6 +312,8 @@ export default function DoctorDashboardPage() {
                         ? 'border-rose-300 ring-4 ring-rose-50 bg-rose-50/20'
                         : isHigh
                         ? 'border-amber-300'
+                        : isAyushItem
+                        ? 'border-emerald-200 hover:border-emerald-400'
                         : 'border-slate-200 hover:border-sky-300'
                     }`}
                   >
@@ -282,6 +326,17 @@ export default function DoctorDashboardPage() {
                         <span className="text-sm font-bold text-slate-600 px-3 py-0.5 rounded-full bg-slate-100">
                           {item.age} Years | <span className="capitalize">{item.gender}</span>
                         </span>
+
+                        {/* Consultation Mode Tag */}
+                        {isAyushItem ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-black text-xs">
+                            🪷 AYUSH / Ayurveda
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300 font-black text-xs">
+                            🏥 Modern Medicine
+                          </span>
+                        )}
 
                         {/* Priority Badge */}
                         {isCritical ? (

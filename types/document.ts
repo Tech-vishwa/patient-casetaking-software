@@ -12,10 +12,12 @@ export type DocumentProcessingStatus =
 
 export interface ExtractedLabResult {
   test: string;
+  testName?: string;
   value: number | string;
   unit?: string;
   referenceRange?: string;
   isOutsideRange?: boolean;
+  isAbnormal?: boolean;
 }
 
 export interface ExtractedMedication {

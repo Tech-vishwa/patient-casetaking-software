@@ -176,4 +176,11 @@ export class IntakeSessionService {
   static async getIncompleteSession(patientId: string): Promise<IntakeSession | null> {
     return await mockDb.getIncompleteSessionByPatient(patientId);
   }
+
+  /**
+   * Complete an intake session and set status to completed
+   */
+  static async completeSession(sessionId: string): Promise<IntakeSession | null> {
+    return IntakeSessionService.updateWorkflowState(sessionId, 'COMPLETED', 4, 'completed');
+  }
 }

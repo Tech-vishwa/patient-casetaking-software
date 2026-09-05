@@ -126,7 +126,7 @@ export const PatientAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPatient(newPatient);
 
       // Start fresh intake session
-      const newSession = await IntakeSessionService.startSession(newPatient.id, 'LANGUAGE_SELECTED');
+      const newSession = await IntakeSessionService.startSession(newPatient.id, 'IDENTIFIED');
       setSession(newSession);
 
       return { success: true };
@@ -149,10 +149,10 @@ export const PatientAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const startNewSession = async (): Promise<string> => {
     if (!patient) return '/patient/login';
 
-    const freshSession = await IntakeSessionService.startSession(patient.id, 'LANGUAGE_SELECTED');
+    const freshSession = await IntakeSessionService.startSession(patient.id, 'CONSULTATION_MODE_SELECTED');
     setSession(freshSession);
     setIncompleteSession(null);
-    return '/kiosk/consent';
+    return '/kiosk/mode';
   };
 
   const logout = () => {

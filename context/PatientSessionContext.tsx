@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Patient } from '@/types/patient';
-import { IntakeSession, WorkflowState } from '@/types/intakeSession';
+import { IntakeSession, WorkflowState, ConsultationMode } from '@/types/intakeSession';
 import { ConsentRecord } from '@/types/consent';
 import { IntakeSessionService } from '@/services/intakeSessionService';
 import { WorkflowStateMachine } from '@/services/workflowStateMachine';
@@ -12,11 +12,13 @@ interface PatientSessionContextType {
   patient: Patient | null;
   session: IntakeSession | null;
   consent: ConsentRecord | null;
+  consultationMode: ConsultationMode;
   isLoading: boolean;
   setPatient: (patient: Patient | null) => void;
   setSession: (session: IntakeSession | null) => void;
   setConsent: (consent: ConsentRecord | null) => void;
-  initializeSession: (patient: Patient, initialState?: WorkflowState) => Promise<IntakeSession>;
+  setConsultationMode: (mode: ConsultationMode) => Promise<void>;
+  initializeSession: (patient: Patient, initialState?: WorkflowState, mode?: ConsultationMode) => Promise<IntakeSession>;
   advanceSessionStep: (step: number) => Promise<void>;
   updateWorkflowState: (state: WorkflowState, step?: number, draftHistory?: any) => Promise<void>;
   resetKioskSession: () => void;
@@ -29,12 +31,14 @@ const STORAGE_KEYS = {
   ACTIVE_PATIENT: 'medikiosk_active_patient_v2',
   ACTIVE_SESSION: 'medikiosk_active_session_v2',
   ACTIVE_CONSENT: 'medikiosk_active_consent_v2',
+  ACTIVE_MODE: 'medikiosk_active_consultation_mode_v2',
 };
 
 export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [patient, setPatientState] = useState<Patient | null>(null);
   const [session, setSessionState] = useState<IntakeSession | null>(null);
   const [consent, setConsentState] = useState<ConsentRecord | null>(null);
+  const [consultationMode, setConsultationModeState] = useState<ConsultationMode>('MODERN_MEDICINE');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Restore session from localStorage on browser mount
@@ -43,10 +47,18 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
       const storedPatient = localStorage.getItem(STORAGE_KEYS.ACTIVE_PATIENT);
       const storedSession = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
       const storedConsent = localStorage.getItem(STORAGE_KEYS.ACTIVE_CONSENT);
+      const storedMode = localStorage.getItem(STORAGE_KEYS.ACTIVE_MODE) as ConsultationMode | null;
 
       if (storedPatient) setPatientState(JSON.parse(storedPatient));
-      if (storedSession) setSessionState(JSON.parse(storedSession));
+      if (storedSession) {
+        const parsedSession: IntakeSession = JSON.parse(storedSession);
+        setSessionState(parsedSession);
+        if (parsedSession.consultation_mode) {
+          setConsultationModeState(parsedSession.consultation_mode);
+        }
+      }
       if (storedConsent) setConsentState(JSON.parse(storedConsent));
+      if (storedMode) setConsultationModeState(storedMode);
     } catch (e) {
       console.error('Failed to load session from storage', e);
     } finally {
@@ -70,6 +82,10 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
     try {
       if (s) {
         localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(s));
+        if (s.consultation_mode) {
+          setConsultationModeState(s.consultation_mode);
+          localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, s.consultation_mode);
+        }
       } else {
         localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
       }
@@ -87,9 +103,24 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
     } catch {}
   };
 
+  const setConsultationMode = async (mode: ConsultationMode) => {
+    setConsultationModeState(mode);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_MODE, mode);
+    } catch {}
+
+    if (session) {
+      const updated = await mockDb.updateIntakeSession(session.id, { consultation_mode: mode });
+      if (updated) {
+        setSession(updated);
+      }
+    }
+  };
+
   const initializeSession = async (
     newPatient: Patient,
-    initialState: WorkflowState = 'ONBOARDING'
+    initialState: WorkflowState = 'ONBOARDING',
+    mode: ConsultationMode = consultationMode
   ): Promise<IntakeSession> => {
     setPatient(newPatient);
     // Check if existing active session exists to prevent duplicate creation
@@ -99,6 +130,10 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
       return existing;
     }
     const newSession = await IntakeSessionService.startSession(newPatient.id, initialState);
+    if (mode && newSession) {
+      newSession.consultation_mode = mode;
+      await mockDb.updateIntakeSession(newSession.id, { consultation_mode: mode });
+    }
     setSession(newSession);
     return newSession;
   };
@@ -129,10 +164,12 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
     setPatientState(null);
     setSessionState(null);
     setConsentState(null);
+    setConsultationModeState('MODERN_MEDICINE');
     try {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_PATIENT);
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_CONSENT);
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_MODE);
     } catch {}
   };
 
@@ -144,10 +181,12 @@ export const PatientSessionProvider: React.FC<{ children: React.ReactNode }> = (
         patient,
         session,
         consent,
+        consultationMode,
         isLoading,
         setPatient,
         setSession,
         setConsent,
+        setConsultationMode,
         initializeSession,
         advanceSessionStep,
         updateWorkflowState,

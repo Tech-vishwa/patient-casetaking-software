@@ -274,6 +274,132 @@ const INITIAL_SUMMARIES: StructuredClinicalSummary[] = [
       important_alerts: [],
     },
   },
+  {
+    id: 'sum-demo-004',
+    patient_id: 'demo-pat-004',
+    intake_session_id: 'demo-sess-004',
+    consultation_mode: 'AYUSH',
+    version: 1,
+    status: 'draft',
+    generated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    summary_content: 'Presenting Complaint: Chronic indigestion, hyperacidity, and abdominal bloating after meals (Amlapitta & Agnimandya)',
+    structured_summary: {
+      chief_complaint: 'Chronic indigestion and hyperacidity (Amlapitta)',
+      history_of_present_illness: 'Patient reports sour belching, heartburn after spicy/fried food, and sluggish bowel movements for 3 months.',
+      past_medical_history: ['Occasional mild migraine'],
+      past_surgical_history: ['None reported'],
+      current_medications: [{ name: 'Avipattikar Churna', dosage: '3g', frequency: 'Twice daily before meals', source: 'patient' }],
+      allergies: [{ allergen: 'No known drug allergies', type: 'drug' }],
+      family_history: ['Mother had osteoarthritis'],
+      personal_history: ['Sedentary office routine', 'Irregular meal timings', 'Prefers warm cooked foods'],
+      review_of_systems: { gastrointestinal: 'Acid reflux, bloating (Adhmana)', nervous: 'Mild evening tension' },
+      prior_investigations: [],
+      important_alerts: [],
+    },
+    ayush_summary: {
+      presenting_complaint: 'Chronic indigestion, hyperacidity, and abdominal bloating after meals (Amlapitta & Agnimandya)',
+      duration: '3 months',
+      previous_treatment: 'Self-medicated with over-the-counter antacids; seeking holistic Ayurvedic management',
+      current_symptoms: ['Amlapitta (Hyperacidity & sour belching)', 'Adhmana (Abdominal bloating)', 'Mandagni (Sluggish appetite & digestion)', 'Alasya (Mild post-meal lethargy)'],
+      prakriti_assessment: {
+        body_build: 'Madhyama (Medium body frame)',
+        skin_type: 'Warm, oily Pitta tendency with mild warmth',
+        appetite: 'Vishamagni/Tikshnagni (Irregular to sharp appetite)',
+        sleep_pattern: 'Disturbed sleep, tends to wake around 2:00 AM',
+        temperament: 'Alert, observant, prone to frustration when hungry (Pitta-Vata)',
+        dominant_dosha_tendency: 'Pitta-Vata',
+      },
+      vikriti_assessment: {
+        recent_changes: 'Aggravated burning sensation in epigastrium after fried or sour meals',
+        current_symptoms: ['Acid regurgitation', 'Lower abdomen bloating', 'Slow digestion'],
+        digestive_changes: 'Sluggish gastric emptying after lunch',
+        sleep_changes: 'Interrupted sleep due to gastric discomfort',
+        energy_changes: 'Low energy in late afternoon',
+      },
+      ahara_assessment: {
+        food_types: 'Mixed diet, frequent consumption of tea and sour/fermented foods',
+        meal_timing: 'Irregular lunch (between 2:00 PM - 3:30 PM) due to work',
+        appetite: 'Variable (sometimes sharp, sometimes dull)',
+        food_preferences: 'Prefers warm, spicy foods; needs to switch to cooling/soothing diet',
+        water_intake: 'Around 2 to 2.5 litres per day (room temperature)',
+      },
+      vihara_assessment: {
+        daily_routine: 'Sedentary desk job with prolonged sitting',
+        physical_activity: 'Walking 20 minutes in morning 2-3 days a week',
+        sleep: '6 hours, restless',
+        stress: 'Moderate workplace mental stress',
+        work_pattern: 'Office clerical hours 9:00 AM to 6:00 PM',
+      },
+      dashavidha_pariksha: {
+        prakriti: 'Pitta-Vata (Medium frame, warm body, active temperament)',
+        vikriti: 'Pitta-Kapha Dushti presenting as Amlapitta and Agnimandya',
+        sara: 'Madhyama Sara (Moderate tissue vitality)',
+        samhanana: 'Madhyama Samhanana (Moderate compact build)',
+        pramana: 'Madhyama Pramana (Normal body proportions)',
+        satmya: 'Satmya to South Indian traditional grains and spices',
+        sattva: 'Madhyama Sattva (Moderate mental resilience)',
+        ahara_shakti: 'Avara-Madhyama (Sub-optimal digestive power - Agnimandya)',
+        vyayama_shakti: 'Madhyama Vyayama Shakti (Moderate exertion tolerance)',
+        vaya: 'Madhyama Vaya (Adult / Middle age - 48 years)',
+      },
+      previous_medical_treatment_history: ['Occasional PPI/Antacid syrups with temporary symptomatic relief'],
+      medications: [{ name: 'Avipattikar Churna', dosage: '3g', frequency: 'Twice daily before meals', source: 'patient' }],
+      uploaded_investigations: [],
+      important_alerts: [],
+    },
+  },
+];
+
+const INITIAL_AYUSH_ASSESSMENTS: AyushAssessment[] = [
+  {
+    id: 'ayush-demo-001',
+    patient_id: 'demo-pat-004',
+    intake_session_id: 'demo-sess-004',
+    presenting_complaint: 'Chronic indigestion, hyperacidity, and abdominal bloating after meals (Amlapitta & Agnimandya)',
+    duration: '3 months',
+    previous_treatment: 'Self-medicated with over-the-counter antacids; seeking holistic Ayurvedic management',
+    current_symptoms: ['Amlapitta (Hyperacidity & sour belching)', 'Adhmana (Abdominal bloating)', 'Mandagni (Sluggish appetite & digestion)', 'Alasya (Mild post-meal lethargy)'],
+    prakriti: {
+      body_build: 'Madhyama (Medium body frame)',
+      skin_type: 'Warm, oily Pitta tendency with mild warmth',
+      appetite: 'Vishamagni/Tikshnagni (Irregular to sharp appetite)',
+      sleep_pattern: 'Disturbed sleep, tends to wake around 2:00 AM',
+      temperament: 'Alert, observant, prone to frustration when hungry (Pitta-Vata)',
+      dominant_dosha_tendency: 'Pitta-Vata',
+    },
+    vikriti: {
+      recent_changes: 'Aggravated burning sensation in epigastrium after fried or sour meals',
+      current_symptoms: ['Acid regurgitation', 'Lower abdomen bloating', 'Slow digestion'],
+      digestive_changes: 'Sluggish gastric emptying after lunch',
+      sleep_changes: 'Interrupted sleep due to gastric discomfort',
+      energy_changes: 'Low energy in late afternoon',
+    },
+    ahara_assessment: {
+      food_types: 'Mixed diet, frequent consumption of tea and sour/fermented foods',
+      meal_timing: 'Irregular lunch (between 2:00 PM - 3:30 PM) due to work',
+      appetite: 'Variable (sometimes sharp, sometimes dull)',
+      food_preferences: 'Prefers warm, spicy foods; needs to switch to cooling/soothing diet',
+      water_intake: 'Around 2 to 2.5 litres per day (room temperature)',
+    },
+    vihara_assessment: {
+      daily_routine: 'Sedentary desk job with prolonged sitting',
+      physical_activity: 'Walking 20 minutes in morning 2-3 days a week',
+      sleep: '6 hours, restless',
+      stress: 'Moderate workplace mental stress',
+      work_pattern: 'Office clerical hours 9:00 AM to 6:00 PM',
+    },
+    sara: 'Madhyama Sara (Moderate tissue vitality)',
+    samhanana: 'Madhyama Samhanana (Moderate compact build)',
+    pramana: 'Madhyama Pramana (Normal body proportions)',
+    satmya: 'Satmya to South Indian traditional grains and spices',
+    sattva: 'Madhyama Sattva (Moderate mental resilience)',
+    ahara_shakti: 'Avara-Madhyama (Sub-optimal digestive power - Agnimandya)',
+    vyayama_shakti: 'Madhyama Vyayama Shakti (Moderate exertion tolerance)',
+    vaya: 'Madhyama Vaya (Adult / Middle age - 48 years)',
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+  },
 ];
 
 class MockDatabase {
@@ -417,6 +543,7 @@ class MockDatabase {
       patient_id: input.patient_id,
       status: input.status || 'onboarding',
       workflow_state: input.workflow_state || 'ONBOARDING',
+      consultation_mode: input.consultation_mode || 'MODERN_MEDICINE',
       current_step: input.current_step || 1,
       draft_history: input.draft_history || null,
       started_at: new Date().toISOString(),
@@ -545,6 +672,54 @@ class MockDatabase {
 
   async getClinicalHistoryBySessionId(sessionId: string): Promise<StructuredClinicalHistory | null> {
     return this.getClinicalHistoryBySession(sessionId);
+  }
+
+  // ---------------- AYUSH Assessments (Part 12) ----------------
+  private getAyushAssessmentsList(): AyushAssessment[] {
+    return this.getItem(STORAGE_KEYS.AYUSH_ASSESSMENTS, INITIAL_AYUSH_ASSESSMENTS);
+  }
+
+  async saveAyushAssessment(input: CreateAyushAssessmentInput): Promise<AyushAssessment> {
+    const list = this.getAyushAssessmentsList();
+    const existingIndex = list.findIndex((a) => a.intake_session_id === input.intake_session_id);
+
+    const record: AyushAssessment = {
+      id: existingIndex !== -1 ? list[existingIndex].id : 'ayush-' + Math.random().toString(36).substring(2, 9),
+      patient_id: input.patient_id,
+      intake_session_id: input.intake_session_id,
+      presenting_complaint: input.presenting_complaint,
+      duration: input.duration,
+      previous_treatment: input.previous_treatment,
+      current_symptoms: input.current_symptoms || [],
+      prakriti: input.prakriti || {},
+      vikriti: input.vikriti || {},
+      ahara_assessment: input.ahara_assessment || {},
+      vihara_assessment: input.vihara_assessment || {},
+      sara: input.sara,
+      samhanana: input.samhanana,
+      pramana: input.pramana,
+      satmya: input.satmya,
+      sattva: input.sattva,
+      ahara_shakti: input.ahara_shakti,
+      vyayama_shakti: input.vyayama_shakti,
+      vaya: input.vaya,
+      created_at: existingIndex !== -1 ? list[existingIndex].created_at : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existingIndex !== -1) {
+      list[existingIndex] = record;
+    } else {
+      list.push(record);
+    }
+
+    this.setItem(STORAGE_KEYS.AYUSH_ASSESSMENTS, list);
+    return record;
+  }
+
+  async getAyushAssessmentBySession(sessionId: string): Promise<AyushAssessment | null> {
+    const list = this.getAyushAssessmentsList();
+    return list.find((a) => a.intake_session_id === sessionId) || null;
   }
 
   // ---------------- Red Flag Alerts (Segment 2) ----------------
@@ -716,8 +891,10 @@ class MockDatabase {
       id: existingIndex !== -1 ? summaries[existingIndex].id : 'sum-' + Math.random().toString(36).substring(2, 9),
       patient_id: input.patient_id,
       intake_session_id: input.intake_session_id,
+      consultation_mode: input.consultation_mode || 'MODERN_MEDICINE',
       summary_content: input.summary_content,
       structured_summary: input.structured_summary,
+      ayush_summary: input.ayush_summary,
       version: existingIndex !== -1 ? (summaries[existingIndex].version || 1) + 1 : 1,
       status: input.status || 'draft',
       generated_at: existingIndex !== -1 ? summaries[existingIndex].generated_at : new Date().toISOString(),
@@ -766,6 +943,8 @@ class MockDatabase {
       doctor_name: input.doctorName,
       original_summary: input.originalSummary,
       edited_summary: input.editedSummary,
+      original_ayush_summary: input.originalAyushSummary,
+      edited_ayush_summary: input.editedAyushSummary,
       review_status: input.reviewStatus,
       doctor_notes: input.doctorNotes,
       his_synced: false,
@@ -862,7 +1041,11 @@ class MockDatabase {
         gender: patient?.gender || 'other',
         phone: patient?.phone || '',
         abhaId: patient?.abha_id || null,
-        chiefComplaint: summary?.structured_summary?.chief_complaint || 'Clinical Consultation',
+        chiefComplaint:
+          session.consultation_mode === 'AYUSH'
+            ? (summary?.ayush_summary?.presenting_complaint || summary?.structured_summary?.chief_complaint || 'Ayurvedic Clinical Assessment')
+            : (summary?.structured_summary?.chief_complaint || 'Clinical Consultation'),
+        consultationMode: session.consultation_mode || 'MODERN_MEDICINE',
         priority,
         hasRedFlag,
         redFlagCategories,

@@ -4,34 +4,33 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { usePatientSession } from '@/context/PatientSessionContext';
+import { ClinicalStage, ClinicalQuestion, ConversationMessage, RedFlagAlert } from '@/types/clinical';
+import { AyushStage } from '@/types/ayush';
 import { AIService, ComplaintCategory } from '@/services/aiService';
+import { AyushService } from '@/services/ayushService';
 import { RedFlagService } from '@/services/redFlagService';
 import { ClinicalService } from '@/services/clinicalService';
-import { mockDb } from '@/lib/supabase/mockDb';
 import { AiAvatar } from '@/components/kiosk/AiAvatar';
-import { ConversationProgress } from '@/components/kiosk/ConversationProgress';
 import { InputMode } from '@/components/kiosk/InputMode';
+import { ConversationProgress } from '@/components/kiosk/ConversationProgress';
 import { RedFlagModal } from '@/components/kiosk/RedFlagModal';
-import { KioskButton } from '@/components/kiosk/KioskButton';
 import { AudioPromptButton } from '@/components/kiosk/AudioPromptButton';
-import {
-  ClinicalStage,
-  ClinicalQuestion,
-  ConversationMessage,
-  RedFlagAlert,
-} from '@/types/clinical';
-import { Bot, User, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { Bot, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { mockDb } from '@/lib/supabase/mockDb';
 
 export default function ConversationalHistoryPage() {
   const router = useRouter();
   const { language, t, speakText } = useLanguage();
-  const { patient, session, consent, isLoading: sessionLoading, updateWorkflowState } = usePatientSession();
+  const { patient, session, consent, consultationMode, isLoading: sessionLoading, updateWorkflowState } = usePatientSession();
 
-  const [stage, setStage] = useState<ClinicalStage>('chief_complaint');
+  const isAyush = consultationMode === 'AYUSH';
+
+  // Current stage & question tracking
+  const [stage, setStage] = useState<ClinicalStage>(isAyush ? 'presenting_complaint' : 'chief_complaint');
   const [complaintCategory, setComplaintCategory] = useState<ComplaintCategory>('general');
-  const [hpiQuestionIndex, setHpiQuestionIndex] = useState<number>(0);
+  const [questionIndex, setQuestionIndex] = useState<number>(0);
   const [currentQuestion, setCurrentQuestion] = useState<ClinicalQuestion>(
-    AIService.getInitialGreeting(language)
+    AIService.getInitialGreeting(language, consultationMode)
   );
 
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -41,7 +40,7 @@ export default function ConversationalHistoryPage() {
   const [isFinishingInterview, setIsFinishingInterview] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
 
-  // Collected structured answers across all 8 stages
+  // Modern Medicine Collected Data
   const [collectedData, setCollectedData] = useState<{
     chief_complaint: string;
     hpi: Record<string, string>;
@@ -62,6 +61,29 @@ export default function ConversationalHistoryPage() {
     personal_history: {},
   });
 
+  // AYUSH Collected Data
+  const [ayushData, setAyushData] = useState<{
+    presenting_complaint: string;
+    duration: string;
+    previous_treatment: string;
+    current_symptoms: string[];
+    prakriti: Record<string, string>;
+    vikriti: Record<string, string>;
+    ahara: Record<string, string>;
+    vihara: Record<string, string>;
+    dashavidha: Record<string, string>;
+  }>({
+    presenting_complaint: '',
+    duration: '',
+    previous_treatment: '',
+    current_symptoms: [],
+    prakriti: {},
+    vikriti: {},
+    ahara: {},
+    vihara: {},
+    dashavidha: {},
+  });
+
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Guard: Redirect if no active patient or consent
@@ -75,54 +97,80 @@ export default function ConversationalHistoryPage() {
     }
   }, [sessionLoading, patient, consent, router]);
 
-  // Restore existing messages or load initial greeting on mount
+  // Initialize initial greeting or restore existing messages
   useEffect(() => {
     if (session && patient) {
-      // Check if session already has stored messages
       mockDb.getConversationMessages(session.id).then((storedMsgs) => {
         if (storedMsgs && storedMsgs.length > 0) {
           setMessages(storedMsgs);
-          // Restore clinical history draft
-          ClinicalService.getClinicalHistory(session.id).then((hist) => {
-            if (hist) {
-              setCollectedData({
-                chief_complaint: hist.chief_complaint || '',
-                hpi: (hist.hpi as any) || {},
-                past_medical_history: hist.past_medical_history || [],
-                surgical_history: hist.surgical_history || [],
-                medications: hist.medications || [],
-                allergies: hist.allergies || [],
-                family_history: hist.family_history || [],
-                personal_history: (hist.personal_history as any) || {},
-              });
-            }
-          });
+          // Restore drafts
+          if (isAyush) {
+            AyushService.getAssessment(session.id).then((savedAssessment) => {
+              if (savedAssessment) {
+                setAyushData({
+                  presenting_complaint: savedAssessment.presenting_complaint || '',
+                  duration: savedAssessment.duration || '',
+                  previous_treatment: savedAssessment.previous_treatment || '',
+                  current_symptoms: savedAssessment.current_symptoms || [],
+                  prakriti: (savedAssessment.prakriti as any) || {},
+                  vikriti: (savedAssessment.vikriti as any) || {},
+                  ahara: (savedAssessment.ahara_assessment as any) || {},
+                  vihara: (savedAssessment.vihara_assessment as any) || {},
+                  dashavidha: {
+                    sara: savedAssessment.sara || '',
+                    samhanana: savedAssessment.samhanana || '',
+                    vyayama_shakti: savedAssessment.vyayama_shakti || '',
+                    sattva: savedAssessment.sattva || '',
+                  },
+                });
+              }
+            });
+          } else {
+            ClinicalService.getClinicalHistory(session.id).then((hist) => {
+              if (hist) {
+                setCollectedData({
+                  chief_complaint: hist.chief_complaint || '',
+                  hpi: (hist.hpi as any) || {},
+                  past_medical_history: hist.past_medical_history || [],
+                  surgical_history: hist.surgical_history || [],
+                  medications: hist.medications || [],
+                  allergies: hist.allergies || [],
+                  family_history: hist.family_history || [],
+                  personal_history: (hist.personal_history as any) || {},
+                });
+              }
+            });
+          }
         } else if (messages.length === 0) {
-          const initialGreeting = AIService.getInitialGreeting(language);
+          const initialGreeting = AIService.getInitialGreeting(language, consultationMode);
           setCurrentQuestion(initialGreeting);
           const initialMsg: ConversationMessage = {
             id: 'msg-init',
             sender: 'ai',
             text: initialGreeting.question,
             timestamp: new Date().toISOString(),
-            stage: 'chief_complaint',
+            stage: isAyush ? 'presenting_complaint' : 'chief_complaint',
           };
           setMessages([initialMsg]);
           speakText(initialGreeting.question);
         }
       });
     }
-  }, [session?.id, patient?.id]);
+  }, [session?.id, patient?.id, consultationMode]);
 
-  // Re-translate current question when language changes without clearing messages
+  // Re-translate current question when language changes in-place without resetting answers
   useEffect(() => {
-    if (stage === 'chief_complaint' && messages.length <= 1) {
-      const updatedGreeting = AIService.getInitialGreeting(language);
-      setCurrentQuestion(updatedGreeting);
+    if (isAyush) {
+      const q = AIService.getNextQuestion(stage, questionIndex, 'general', language, 'AYUSH') ||
+        AIService.getInitialGreeting(language, 'AYUSH');
+      if (q) setCurrentQuestion(q);
     } else {
-      const q = AIService.getNextQuestion(stage, hpiQuestionIndex, complaintCategory, language);
-      if (q) {
-        setCurrentQuestion(q);
+      if (stage === 'chief_complaint' && messages.length <= 1) {
+        const updatedGreeting = AIService.getInitialGreeting(language, 'MODERN_MEDICINE');
+        setCurrentQuestion(updatedGreeting);
+      } else {
+        const q = AIService.getNextQuestion(stage, questionIndex, complaintCategory, language, 'MODERN_MEDICINE');
+        if (q) setCurrentQuestion(q);
       }
     }
   }, [language]);
@@ -154,107 +202,200 @@ export default function ConversationalHistoryPage() {
     const updatedMessages = [...messages, patientMsg];
     setMessages(updatedMessages);
 
-    // 2. Deterministic Red Flag Safety Evaluation
-    const redFlagEval = RedFlagService.evaluate(answerText);
-    if (redFlagEval.hasRedFlag) {
-      const highestRule = redFlagEval.matchedRules[0];
-      const alert = await ClinicalService.logRedFlagAlert(
+    // 2. Deterministic Red-Flag Safety Rule Engine (Applies to BOTH modes)
+    const redFlagResult = RedFlagService.analyzeInput(answerText);
+    if (redFlagResult.isTriggered) {
+      const alert = await RedFlagService.recordAlert(
         session.id,
         patient.id,
-        highestRule.category,
-        highestRule.severity,
-        redFlagEval.matchedKeywords
+        redFlagResult.category || 'CHEST_EMERGENCY',
+        redFlagResult.severity || 'critical',
+        redFlagResult.matchedTerms || []
       );
       setActiveRedFlag(alert);
     }
 
-    // 3. Process Answer & Advance Clinical State Machine
-    let nextStage = stage;
-    let nextIndex = hpiQuestionIndex;
+    // Persist conversation so far
+    await mockDb.saveConversationMessages(session.id, updatedMessages);
+
+    // -------------------------------------------------------------
+    // AYUSH Flow
+    // -------------------------------------------------------------
+    if (isAyush) {
+      const currentKey = currentQuestion.fieldKey || 'answer';
+      const updatedAyush = { ...ayushData };
+
+      if (stage === 'presenting_complaint') {
+        if (currentKey === 'presenting_complaint') {
+          updatedAyush.presenting_complaint = answerText;
+          updatedAyush.current_symptoms = [answerText];
+        } else if (currentKey === 'duration') {
+          updatedAyush.duration = answerText;
+        } else if (currentKey === 'previous_treatment') {
+          updatedAyush.previous_treatment = answerText;
+        }
+      } else if (stage === 'prakriti') {
+        updatedAyush.prakriti = { ...updatedAyush.prakriti, [currentKey]: answerText };
+      } else if (stage === 'vikriti') {
+        updatedAyush.vikriti = { ...updatedAyush.vikriti, [currentKey]: answerText };
+      } else if (stage === 'ahara') {
+        updatedAyush.ahara = { ...updatedAyush.ahara, [currentKey]: answerText };
+      } else if (stage === 'vihara') {
+        updatedAyush.vihara = { ...updatedAyush.vihara, [currentKey]: answerText };
+      } else if (stage === 'dashavidha_pariksha') {
+        updatedAyush.dashavidha = { ...updatedAyush.dashavidha, [currentKey]: answerText };
+      }
+
+      setAyushData(updatedAyush);
+
+      // Check if there is a next question in this AYUSH stage
+      const nextQIndex = questionIndex + 1;
+      const nextQInStage = AIService.getNextQuestion(stage, nextQIndex, 'general', language, 'AYUSH');
+
+      let nextStage: AyushStage = stage as AyushStage;
+      let nextIndex = nextQIndex;
+
+      if (!nextQInStage) {
+        // Advance to next AYUSH stage
+        nextStage = AyushService.getNextStage(stage as AyushStage);
+        nextIndex = 0;
+      }
+
+      setStage(nextStage);
+      setQuestionIndex(nextIndex);
+
+      // If finished all AYUSH stages
+      if (nextStage === 'completed') {
+        setIsFinishingInterview(true);
+
+        // Save structured assessment to database
+        await AyushService.saveAssessment({
+          patient_id: patient.id,
+          intake_session_id: session.id,
+          presenting_complaint: updatedAyush.presenting_complaint || 'General Ayurvedic Consultation',
+          duration: updatedAyush.duration,
+          previous_treatment: updatedAyush.previous_treatment,
+          current_symptoms: updatedAyush.current_symptoms,
+          prakriti: updatedAyush.prakriti,
+          vikriti: updatedAyush.vikriti,
+          ahara_assessment: updatedAyush.ahara,
+          vihara_assessment: updatedAyush.vihara,
+          sara: updatedAyush.dashavidha.sara,
+          samhanana: updatedAyush.dashavidha.samhanana,
+          vyayama_shakti: updatedAyush.dashavidha.vyayama_shakti,
+          sattva: updatedAyush.dashavidha.sattva,
+          vaya: AyushService.mapAgeToVaya(patient.age),
+        });
+
+        await updateWorkflowState('HISTORY_COMPLETED', 4, updatedAyush);
+
+        setTimeout(() => {
+          router.push('/kiosk/documents');
+        }, 900);
+        return;
+      }
+
+      // Generate next AI question
+      const nextQ = AIService.getNextQuestion(nextStage, nextIndex, 'general', language, 'AYUSH');
+      if (nextQ) {
+        setCurrentQuestion(nextQ);
+        const aiMsg: ConversationMessage = {
+          id: 'msg-ai-' + Date.now(),
+          sender: 'ai',
+          text: nextQ.question,
+          timestamp: new Date().toISOString(),
+          stage: nextStage,
+        };
+        setMessages([...updatedMessages, aiMsg]);
+        setAvatarState('speaking');
+        speakText(nextQ.question);
+      }
+
+      setIsProcessingAnswer(false);
+      return;
+    }
+
+    // -------------------------------------------------------------
+    // Modern Medicine Flow (Allopathic)
+    // -------------------------------------------------------------
+    let nextStage: ClinicalStage = stage;
+    let nextIndex = questionIndex;
     let nextCategory = complaintCategory;
 
-    const newCollected = { ...collectedData };
+    const updatedData = { ...collectedData };
 
     if (stage === 'chief_complaint') {
-      newCollected.chief_complaint = answerText;
-      nextCategory = AIService.classifyComplaint(answerText);
-      setComplaintCategory(nextCategory);
+      updatedData.chief_complaint = answerText;
+      const detectedCategory = AIService.detectComplaintCategory(answerText);
+      setComplaintCategory(detectedCategory);
+      nextCategory = detectedCategory;
       nextStage = 'hpi';
       nextIndex = 0;
     } else if (stage === 'hpi') {
-      if (currentQuestion.fieldKey) {
-        newCollected.hpi[currentQuestion.fieldKey] = answerText;
-      }
-      nextIndex += 1;
-      const nextHpiQ = AIService.getNextQuestion('hpi', nextIndex, nextCategory, language);
-      if (!nextHpiQ) {
+      const field = currentQuestion.fieldKey || `hpi_${questionIndex}`;
+      updatedData.hpi = { ...updatedData.hpi, [field]: answerText };
+
+      if (questionIndex + 1 < 3) {
+        nextIndex = questionIndex + 1;
+      } else {
         nextStage = 'past_medical_history';
+        nextIndex = 0;
       }
     } else if (stage === 'past_medical_history') {
-      newCollected.past_medical_history.push({
-        condition: answerText,
-        status: answerText.toLowerCase().includes('no') ? 'no' : 'yes',
-      });
+      updatedData.past_medical_history = [{ condition: answerText, status: 'yes' }];
       nextStage = 'surgical_history';
+      nextIndex = 0;
     } else if (stage === 'surgical_history') {
-      newCollected.surgical_history.push({ surgery: answerText });
+      updatedData.surgical_history = [{ surgery: answerText }];
       nextStage = 'medications';
+      nextIndex = 0;
     } else if (stage === 'medications') {
-      newCollected.medications.push({ name: answerText });
+      updatedData.medications = [{ name: answerText }];
       nextStage = 'allergies';
+      nextIndex = 0;
     } else if (stage === 'allergies') {
-      newCollected.allergies.push({
-        allergen: answerText,
-        type: answerText.toLowerCase().includes('food') ? 'food' : 'drug',
-      });
+      updatedData.allergies = [{ allergen: answerText, type: 'drug' }];
       nextStage = 'family_history';
+      nextIndex = 0;
     } else if (stage === 'family_history') {
-      newCollected.family_history.push({ relation: 'Family', condition: answerText });
+      updatedData.family_history = [{ relation: 'Family', condition: answerText }];
       nextStage = 'personal_history';
+      nextIndex = 0;
     } else if (stage === 'personal_history') {
-      newCollected.personal_history.diet = answerText;
+      updatedData.personal_history = { habits: answerText };
       nextStage = 'completed';
     }
 
-    setCollectedData(newCollected);
+    setCollectedData(updatedData);
     setStage(nextStage);
-    setHpiQuestionIndex(nextIndex);
+    setQuestionIndex(nextIndex);
 
-    // Save conversation progress and draft state asynchronously
-    await ClinicalService.saveConversation(session.id, patient.id, updatedMessages, language);
-    await updateWorkflowState('HISTORY_IN_PROGRESS', 3, newCollected);
+    // Save partial draft
+    await ClinicalService.saveClinicalHistory({
+      intake_session_id: session.id,
+      patient_id: patient.id,
+      chief_complaint: updatedData.chief_complaint || 'General medical consultation',
+      hpi: updatedData.hpi,
+      past_medical_history: updatedData.past_medical_history,
+      surgical_history: updatedData.surgical_history,
+      medications: updatedData.medications,
+      allergies: updatedData.allergies,
+      family_history: updatedData.family_history,
+      personal_history: updatedData.personal_history,
+    });
 
-    // 4. Check if interview is complete -> AUTO-TRANSITION TO DOCUMENTS
     if (nextStage === 'completed') {
       setIsFinishingInterview(true);
-      setAvatarState('speaking');
+      await updateWorkflowState('HISTORY_COMPLETED', 4, updatedData);
 
-      // Save final structured clinical history
-      await ClinicalService.saveClinicalHistory({
-        intake_session_id: session.id,
-        patient_id: patient.id,
-        chief_complaint: newCollected.chief_complaint,
-        hpi: newCollected.hpi,
-        past_medical_history: newCollected.past_medical_history,
-        surgical_history: newCollected.surgical_history,
-        medications: newCollected.medications,
-        allergies: newCollected.allergies,
-        family_history: newCollected.family_history,
-        personal_history: newCollected.personal_history,
-      });
-
-      await updateWorkflowState('DOCUMENTS_IN_PROGRESS', 4, newCollected);
-      speakText('Health interview completed. Moving to medical documents stage.');
-
-      // Smooth auto-transition to Document upload stage
       setTimeout(() => {
         router.push('/kiosk/documents');
       }, 900);
       return;
     }
 
-    // 5. Generate Next AI Question automatically
-    const nextQ = AIService.getNextQuestion(nextStage, nextIndex, nextCategory, language);
+    // Generate Next AI Question
+    const nextQ = AIService.getNextQuestion(nextStage, nextIndex, nextCategory, language, 'MODERN_MEDICINE');
     if (nextQ) {
       setCurrentQuestion(nextQ);
       const aiMsg: ConversationMessage = {
@@ -287,18 +428,26 @@ export default function ConversationalHistoryPage() {
 
   return (
     <div className="flex-1 flex flex-col justify-between max-w-5xl mx-auto w-full py-2 sm:py-4">
-      {/* 8-Stage Progress Tracker */}
-      <ConversationProgress currentStage={stage} />
+      {/* Dynamic Progress Tracker (Modern Medicine 8 stages or AYUSH 6 stages) */}
+      <ConversationProgress currentStage={stage} consultationMode={consultationMode} />
 
-      {/* Top Banner with AI Avatar & Patient Name */}
+      {/* Top Banner with AI Avatar & Patient Details */}
       <div className="flex items-center justify-between gap-4 my-2">
         <div className="flex items-center gap-3">
           <AiAvatar state={avatarState} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-kiosk-navy">Medi AI Intake Assistant</h2>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Live
+              <h2 className="text-xl font-black text-kiosk-navy">
+                {isAyush ? '🪷 Ayush Kiosk Assistant' : '🏥 Medi AI Intake Assistant'}
+              </h2>
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                  isAyush
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-sky-100 text-sky-800 border-sky-300'
+                }`}
+              >
+                {isAyush ? 'Ayurveda Intake' : 'Allopathic Intake'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -330,7 +479,11 @@ export default function ConversationalHistoryPage() {
               className={`flex items-start gap-3 ${isAi ? 'justify-start' : 'justify-end'}`}
             >
               {isAi && (
-                <div className="w-10 h-10 rounded-xl bg-kiosk-blue text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-md">
+                <div
+                  className={`w-10 h-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-md ${
+                    isAyush ? 'bg-emerald-600' : 'bg-kiosk-blue'
+                  }`}
+                >
                   <Bot className="w-6 h-6" />
                 </div>
               )}
@@ -358,72 +511,71 @@ export default function ConversationalHistoryPage() {
 
               {!isAi && (
                 <div className="w-10 h-10 rounded-xl bg-slate-700 text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-md">
-                  <User className="w-6 h-6" />
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                 </div>
               )}
             </div>
           );
         })}
 
-        {/* AI Thinking / Processing State */}
-        {isProcessingAnswer && !isFinishingInterview && (
-          <div className="flex items-center gap-2 p-3 bg-sky-50 text-kiosk-blue rounded-2xl border border-sky-200 font-bold text-sm max-w-xs animate-in fade-in">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>AI Thinking & Generating Next Question...</span>
-          </div>
-        )}
-
-        {/* Interview Finishing Banner */}
         {isFinishingInterview && (
-          <div className="p-4 bg-emerald-50 text-emerald-900 rounded-2xl border-2 border-emerald-300 font-bold text-base flex items-center justify-center gap-2 animate-in fade-in">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-            <span>Clinical Interview Complete! Transitioning to Document Upload...</span>
+          <div className="p-6 rounded-3xl bg-emerald-50 border-2 border-emerald-300 text-center space-y-2">
+            <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto animate-bounce" />
+            <h3 className="text-xl font-black text-emerald-900">
+              {isAyush ? 'Ayurvedic Intake Completed!' : 'Clinical Intake Completed!'}
+            </h3>
+            <p className="text-sm font-semibold text-emerald-700">
+              Proceeding automatically to document upload...
+            </p>
           </div>
         )}
 
         <div ref={chatBottomRef} />
       </div>
 
-      {/* Multimodal Input Section (Touch Options / Voice / Type) */}
+      {/* Interactive Input Modes (Voice / Text / Touch) */}
       {!isFinishingInterview && (
         <InputMode
           question={currentQuestion}
-          onSubmitAnswer={handleAnswerSubmit}
-          disabled={isProcessingAnswer}
-          onListeningStateChange={(isList) => setAvatarState(isList ? 'listening' : 'idle')}
+          onSubmit={handleAnswerSubmit}
+          isProcessing={isProcessingAnswer}
         />
       )}
 
-      {/* Deterministic Red Flag Safety Modal */}
+      {/* Red Flag Emergency Modal (Immediate Priority Alert for Both Modes) */}
       {activeRedFlag && (
-        <RedFlagModal alert={activeRedFlag} onDismiss={() => setActiveRedFlag(null)} />
+        <RedFlagModal
+          alert={activeRedFlag}
+          onAcknowledge={() => setActiveRedFlag(null)}
+        />
       )}
 
       {/* Exit Confirmation Dialog */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-slate-300">
-            <h3 className="text-2xl font-bold text-kiosk-navy mb-2">
-              {t.conversation.exitConfirmTitle}
-            </h3>
-            <p className="text-base text-slate-600 mb-6 leading-relaxed">
-              {t.conversation.exitConfirmBody}
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl border-2 border-slate-200">
+            <div className="flex items-center gap-3 text-amber-600">
+              <AlertTriangle className="w-8 h-8" />
+              <h3 className="text-2xl font-black text-kiosk-navy">Leave Intake?</h3>
+            </div>
+            <p className="text-slate-600 font-medium leading-relaxed">
+              Your responses are automatically saved as a draft. You can resume this session anytime from your dashboard.
             </p>
-            <div className="flex gap-4">
-              <KioskButton
-                variant="outline"
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
                 onClick={() => setShowExitConfirm(false)}
-                className="flex-1"
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 font-bold text-slate-700 hover:bg-slate-100 transition"
               >
-                Stay & Continue
-              </KioskButton>
-              <KioskButton
-                variant="secondary"
+                {t.common.cancel}
+              </button>
+              <button
+                type="button"
                 onClick={handleExitInterview}
-                className="flex-1"
+                className="flex-1 py-3 px-4 rounded-xl bg-rose-600 font-bold text-white hover:bg-rose-700 transition"
               >
-                Exit to Dashboard
-              </KioskButton>
+                Exit Session
+              </button>
             </div>
           </div>
         </div>

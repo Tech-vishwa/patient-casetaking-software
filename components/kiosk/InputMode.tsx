@@ -9,17 +9,23 @@ import { ClinicalQuestion } from '@/types/clinical';
 
 interface InputModeProps {
   question: ClinicalQuestion;
-  onSubmitAnswer: (answer: string, mode: 'voice' | 'text' | 'touch') => void;
+  onSubmitAnswer?: (answer: string, mode: 'voice' | 'text' | 'touch') => void;
+  onSubmit?: (answer: string, mode: 'voice' | 'text' | 'touch') => void;
   disabled?: boolean;
+  isProcessing?: boolean;
   onListeningStateChange?: (isListening: boolean) => void;
 }
 
 export const InputMode: React.FC<InputModeProps> = ({
   question,
   onSubmitAnswer,
+  onSubmit,
   disabled = false,
+  isProcessing = false,
   onListeningStateChange,
 }) => {
+  const effectiveSubmit = onSubmitAnswer || onSubmit || (() => {});
+  const effectiveDisabled = disabled || isProcessing;
   const { t, language } = useLanguage();
 
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
@@ -114,7 +120,7 @@ export const InputMode: React.FC<InputModeProps> = ({
     clearCountdown();
     stopListening();
     if (transcript.trim()) {
-      onSubmitAnswer(transcript.trim(), 'voice');
+      effectiveSubmit(transcript.trim(), 'voice');
       setTranscript('');
     }
   };
@@ -127,7 +133,7 @@ export const InputMode: React.FC<InputModeProps> = ({
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (typedText.trim()) {
-      onSubmitAnswer(typedText.trim(), 'text');
+      effectiveSubmit(typedText.trim(), 'text');
       setTypedText('');
     }
   };
@@ -137,7 +143,7 @@ export const InputMode: React.FC<InputModeProps> = ({
     stopListening();
     setSelectedTouchOption(option);
     // Instant save and advance
-    onSubmitAnswer(option, 'touch');
+    effectiveSubmit(option, 'touch');
   };
 
   return (

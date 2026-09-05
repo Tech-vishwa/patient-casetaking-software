@@ -102,4 +102,39 @@ export class RedFlagService {
       matchedKeywords,
     };
   }
+
+  /**
+   * Deterministic analyzer returning category, severity, and matched terms for quick checks
+   */
+  static analyzeInput(text: string): {
+    isTriggered: boolean;
+    category?: 'CHEST_EMERGENCY' | 'STROKE_SYMPTOMS' | 'ACUTE_RESPIRATORY' | 'SEVERE_BLEEDING' | 'ALTERED_CONSCIOUSNESS';
+    severity?: 'critical' | 'high' | 'moderate';
+    matchedTerms?: string[];
+  } {
+    const res = RedFlagService.evaluate(text);
+    if (res.hasRedFlag && res.matchedRules.length > 0) {
+      return {
+        isTriggered: true,
+        category: res.matchedRules[0].category,
+        severity: res.matchedRules[0].severity,
+        matchedTerms: res.matchedKeywords,
+      };
+    }
+    return { isTriggered: false };
+  }
+
+  /**
+   * Record a triggered red flag alert in database and mock DB
+   */
+  static async recordAlert(
+    sessionId: string,
+    patientId: string,
+    category: string,
+    severity: 'critical' | 'high' | 'moderate',
+    matchedTerms: string[]
+  ): Promise<any> {
+    const { ClinicalService } = await import('./clinicalService');
+    return ClinicalService.logRedFlagAlert(sessionId, patientId, category, severity, matchedTerms);
+  }
 }

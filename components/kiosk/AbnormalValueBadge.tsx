@@ -6,14 +6,17 @@ import { useLanguage } from '@/context/LanguageContext';
 
 interface AbnormalValueBadgeProps {
   label?: string;
+  isAbnormal?: boolean;
   className?: string;
 }
 
 export const AbnormalValueBadge: React.FC<AbnormalValueBadgeProps> = ({
   label,
+  isAbnormal,
   className = '',
 }) => {
   const { t } = useLanguage();
+  if (isAbnormal === false) return null;
   const text = label || t.documents.abnormalHighlight;
 
   return (

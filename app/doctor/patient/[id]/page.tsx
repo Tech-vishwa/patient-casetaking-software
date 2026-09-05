@@ -15,7 +15,7 @@ import { HospitalIntegrationService } from '@/services/hospitalIntegrationServic
 import { FHIRMapperService } from '@/services/fhirMapperService';
 import { Patient } from '@/types/patient';
 import { IntakeSession } from '@/types/intakeSession';
-import { StructuredClinicalSummary, ClinicalSummaryStructured } from '@/types/summary';
+import { StructuredClinicalSummary, ClinicalSummaryStructured, AyushSummaryStructured } from '@/types/summary';
 import { RedFlagAlert, ConversationMessage } from '@/types/clinical';
 import { MedicalDocument } from '@/types/document';
 import { SummaryReview } from '@/types/review';
@@ -28,14 +28,19 @@ import {
   MessageSquare,
   FileText,
   FileCode2,
-  Share2,
   Save,
-  AlertTriangle,
   Hospital,
-  Clock,
   Sparkles,
   ShieldCheck,
-  RotateCcw,
+  Shield,
+  HeartPulse,
+  Activity,
+  Utensils,
+  Moon,
+  Flame,
+  Users,
+  AlertOctagon,
+  Pill,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -56,6 +61,7 @@ export default function DoctorPatientWorkspacePage() {
   // Doctor Edit Mode State
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedStructured, setEditedStructured] = useState<ClinicalSummaryStructured | null>(null);
+  const [editedAyush, setEditedAyush] = useState<AyushSummaryStructured | null>(null);
   const [doctorNotes, setDoctorNotes] = useState<string>('');
 
   // Modals & Drawers
@@ -96,6 +102,9 @@ export default function DoctorPatientWorkspacePage() {
     if (sum) {
       setSummary(sum);
       setEditedStructured(JSON.parse(JSON.stringify(sum.structured_summary)));
+      if (sum.ayush_summary) {
+        setEditedAyush(JSON.parse(JSON.stringify(sum.ayush_summary)));
+      }
     }
 
     const rfs = await mockDb.getRedFlagsBySession(sessionId);
@@ -111,7 +120,12 @@ export default function DoctorPatientWorkspacePage() {
     if (rev) {
       setExistingReview(rev);
       setDoctorNotes(rev.doctor_notes || '');
-      setEditedStructured(rev.edited_summary);
+      if (rev.edited_summary) {
+        setEditedStructured(rev.edited_summary);
+      }
+      if (rev.edited_ayush_summary) {
+        setEditedAyush(rev.edited_ayush_summary);
+      }
     }
   };
 
@@ -141,6 +155,8 @@ export default function DoctorPatientWorkspacePage() {
         doctorName: user.full_name,
         originalSummary: summary.structured_summary,
         editedSummary: editedStructured || summary.structured_summary,
+        originalAyushSummary: summary.ayush_summary,
+        editedAyushSummary: editedAyush || summary.ayush_summary,
         reviewStatus: 'approved',
         doctorNotes,
       });
@@ -155,7 +171,7 @@ export default function DoctorPatientWorkspacePage() {
 
   // Save Doctor Modifications
   const handleSaveEdits = async () => {
-    if (!session || !patient || !summary || !user || !editedStructured) return;
+    if (!session || !patient || !summary || !user) return;
     setIsSaving(true);
     try {
       const review = await DoctorReviewService.submitReview({
@@ -164,7 +180,9 @@ export default function DoctorPatientWorkspacePage() {
         doctorId: user.id,
         doctorName: user.full_name,
         originalSummary: summary.structured_summary,
-        editedSummary: editedStructured,
+        editedSummary: editedStructured || summary.structured_summary,
+        originalAyushSummary: summary.ayush_summary,
+        editedAyushSummary: editedAyush || summary.ayush_summary,
         reviewStatus: 'modified',
         doctorNotes,
       });
@@ -190,6 +208,8 @@ export default function DoctorPatientWorkspacePage() {
         doctorName: user.full_name,
         originalSummary: summary.structured_summary,
         editedSummary: editedStructured || summary.structured_summary,
+        originalAyushSummary: summary.ayush_summary,
+        editedAyushSummary: editedAyush || summary.ayush_summary,
         reviewStatus: 'rejected',
         doctorNotes,
       });
@@ -206,10 +226,16 @@ export default function DoctorPatientWorkspacePage() {
     if (!session || !summary) return;
     setIsSyncingHis(true);
     try {
-      const res = await HospitalIntegrationService.pushClinicalSummary(
-        session.id,
-        editedStructured || summary.structured_summary
-      );
+      const isAyush =
+        session.consultation_mode === 'AYUSH' ||
+        summary.consultation_mode === 'AYUSH' ||
+        Boolean(summary.ayush_summary);
+
+      const payload = isAyush
+        ? editedAyush || summary.ayush_summary || editedStructured || summary.structured_summary
+        : editedStructured || summary.structured_summary;
+
+      const res = await HospitalIntegrationService.pushClinicalSummary(session.id, payload);
       setSyncResult(res);
     } finally {
       setIsSyncingHis(false);
@@ -224,7 +250,13 @@ export default function DoctorPatientWorkspacePage() {
     );
   }
 
+  const isAyush =
+    session?.consultation_mode === 'AYUSH' ||
+    summary?.consultation_mode === 'AYUSH' ||
+    Boolean(summary?.ayush_summary);
+
   const structured = editedStructured || summary.structured_summary;
+  const ayush = editedAyush || summary.ayush_summary;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
@@ -243,6 +275,16 @@ export default function DoctorPatientWorkspacePage() {
             </Link>
 
             <div className="flex items-center gap-3">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 ${
+                  isAyush
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-sky-100 text-sky-800 border-sky-300'
+                }`}
+              >
+                {isAyush ? '🪷 AYUSH / Ayurveda OPD' : '🏥 Modern Medicine OPD'}
+              </span>
+
               {existingReview && (
                 <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -266,17 +308,34 @@ export default function DoctorPatientWorkspacePage() {
           {/* Patient Profile Strip */}
           <div className="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-kiosk-blue text-white flex items-center justify-center font-black text-2xl shadow-md">
+              <div
+                className={`w-16 h-16 rounded-2xl text-white flex items-center justify-center font-black text-2xl shadow-md ${
+                  isAyush ? 'bg-emerald-600' : 'bg-kiosk-blue'
+                }`}
+              >
                 {patient.full_name.charAt(0)}
               </div>
               <div>
-                <h2 className="text-2xl font-black text-kiosk-navy">
-                  {patient.full_name}
-                </h2>
+                <h2 className="text-2xl font-black text-kiosk-navy">{patient.full_name}</h2>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500 mt-1">
-                  <span>{patient.age} Years • <span className="capitalize">{patient.gender}</span></span>
+                  <span>
+                    {patient.age} Years • <span className="capitalize">{patient.gender}</span>
+                  </span>
                   <span>• Mobile: +91 {patient.phone}</span>
-                  {patient.abha_id && <span>• ABHA: <strong className="text-kiosk-blue">{patient.abha_id}</strong></span>}
+                  {patient.abha_id && (
+                    <span>
+                      • ABHA:{' '}
+                      <strong className={isAyush ? 'text-emerald-700' : 'text-kiosk-blue'}>
+                        {patient.abha_id}
+                      </strong>
+                    </span>
+                  )}
+                  <span>
+                    • Mode:{' '}
+                    <strong className={isAyush ? 'text-emerald-700' : 'text-kiosk-blue'}>
+                      {isAyush ? 'AYUSH / Ayurveda' : 'Modern Medicine'}
+                    </strong>
+                  </span>
                 </div>
               </div>
             </div>
@@ -316,221 +375,836 @@ export default function DoctorPatientWorkspacePage() {
           <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span>AI-generated draft — requires physician verification before prescription or clinical orders.</span>
+              <span>
+                <strong>AI-GENERATED DRAFT — REQUIRES PHYSICIAN VERIFICATION:</strong>{' '}
+                {isAyush
+                  ? 'This intake assessment was compiled by MediKiosk AI from patient-reported symptoms, dietary habits, and routine for physician review. It does not provide medical diagnoses, dosha conclusions, or prescriptions.'
+                  : 'AI-generated draft — requires physician verification before prescription or clinical orders.'}
+              </span>
             </span>
-            <span className="text-[11px] uppercase tracking-wider text-amber-700 font-black">
+            <span className="text-[11px] uppercase tracking-wider text-amber-700 font-black whitespace-nowrap">
               Version {summary.version}
             </span>
           </div>
 
-          {/* 11-Section Unified Clinical Summary (Read / Live Edit Mode) */}
-          <div className="space-y-5">
-            {/* Grid of Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* 1. Chief Complaint */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">1. Chief Complaint</h3>
-                </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={structured.chief_complaint}
-                    onChange={(e) =>
-                      setEditedStructured({ ...structured, chief_complaint: e.target.value })
-                    }
-                    className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-lg font-bold text-kiosk-navy"
-                  />
-                ) : (
-                  <p className="text-xl font-black text-kiosk-navy">{structured.chief_complaint}</p>
-                )}
-              </div>
-
-              {/* 2. HPI */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">2. History of Present Illness</h3>
-                </div>
-                {isEditing ? (
-                  <textarea
-                    rows={3}
-                    value={structured.history_of_present_illness}
-                    onChange={(e) =>
-                      setEditedStructured({ ...structured, history_of_present_illness: e.target.value })
-                    }
-                    className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-sm font-semibold text-slate-800"
-                  />
-                ) : (
-                  <p className="text-sm font-semibold text-slate-700 leading-relaxed">
-                    {structured.history_of_present_illness}
-                  </p>
-                )}
-              </div>
-
-              {/* 3. Past Medical History */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">3. Past Medical History</h3>
-                {isEditing ? (
-                  <textarea
-                    rows={3}
-                    value={structured.past_medical_history.join('\n')}
-                    onChange={(e) =>
-                      setEditedStructured({
-                        ...structured,
-                        past_medical_history: e.target.value.split('\n').filter(Boolean),
-                      })
-                    }
-                    className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-xs font-semibold text-slate-800"
-                  />
-                ) : (
-                  <div className="space-y-1 text-sm font-semibold text-slate-800">
-                    {structured.past_medical_history.map((pmh, i) => (
-                      <div key={i} className="p-2 bg-slate-50 rounded-xl">
-                        {pmh}
-                      </div>
-                    ))}
+          {/* ============================================================ */}
+          {/* AYUSH MODE CLINICAL SUMMARY (11 Sections)                   */}
+          {/* ============================================================ */}
+          {isAyush && ayush ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* 1. Patient Information */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Users className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      1. Patient Information
+                    </h3>
                   </div>
-                )}
-              </div>
-
-              {/* 4. Past Surgical History */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">4. Past Surgical History</h3>
-                {isEditing ? (
-                  <textarea
-                    rows={3}
-                    value={structured.past_surgical_history.join('\n')}
-                    onChange={(e) =>
-                      setEditedStructured({
-                        ...structured,
-                        past_surgical_history: e.target.value.split('\n').filter(Boolean),
-                      })
-                    }
-                    className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-xs font-semibold text-slate-800"
-                  />
-                ) : (
-                  <div className="space-y-1 text-sm font-semibold text-slate-800">
-                    {structured.past_surgical_history.map((surg, i) => (
-                      <div key={i} className="p-2 bg-slate-50 rounded-xl">
-                        {surg}
-                      </div>
-                    ))}
+                  <div className="text-sm font-semibold text-slate-800 space-y-1">
+                    <p>
+                      Name: <strong className="text-kiosk-navy">{patient.full_name}</strong>
+                    </p>
+                    <p>
+                      Age / Gender:{' '}
+                      <strong className="text-kiosk-navy">
+                        {patient.age} yrs • {patient.gender}
+                      </strong>
+                    </p>
+                    <p>
+                      ABHA ID:{' '}
+                      <strong className="text-emerald-700">{patient.abha_id || 'Not linked'}</strong>
+                    </p>
+                    <p>
+                      Consultation Mode:{' '}
+                      <strong className="text-emerald-700">🪷 AYUSH / Ayurveda OPD</strong>
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* 5. Current Medications */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3 md:col-span-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">5. Current Medications & Prescriptions</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {structured.current_medications.map((med, i) => (
-                    <div key={i} className="p-3 bg-emerald-50 text-emerald-950 rounded-2xl border border-emerald-200 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-bold">{med.name} {med.dosage || ''}</p>
-                        <p className="text-emerald-700">{med.frequency || 'Rx'}</p>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-md bg-white text-emerald-800 text-[10px] uppercase font-black">
-                        {med.source}
-                      </span>
+                {/* 2. Presenting Complaint */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <HeartPulse className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      2. Presenting Complaint
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={ayush.presenting_complaint}
+                        onChange={(e) =>
+                          setEditedAyush({ ...ayush, presenting_complaint: e.target.value })
+                        }
+                        className="w-full p-3 rounded-xl border-2 border-emerald-500 text-lg font-bold text-kiosk-navy"
+                        placeholder="Chief complaint..."
+                      />
+                      <input
+                        type="text"
+                        value={ayush.duration || ''}
+                        onChange={(e) =>
+                          setEditedAyush({ ...ayush, duration: e.target.value })
+                        }
+                        className="w-full p-2 rounded-xl border border-emerald-400 text-xs font-semibold text-slate-700"
+                        placeholder="Duration (e.g. 2 weeks)..."
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 6. Allergies & 7. Family */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-4">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-rose-600 mb-2">6. Allergies & Sensitivities</h3>
-                  <div className="space-y-1 text-xs font-semibold text-slate-800">
-                    {structured.allergies.map((a, i) => (
-                      <p key={i} className="p-2 bg-rose-50 text-rose-900 rounded-xl">
-                        {a.allergen}
+                  ) : (
+                    <div>
+                      <p className="text-xl font-black text-emerald-950">
+                        {ayush.presenting_complaint}
                       </p>
-                    ))}
-                  </div>
+                      {ayush.duration && (
+                        <p className="text-xs font-bold text-emerald-700 mt-1">
+                          Duration: {ayush.duration}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-amber-600 mb-2">7. Family Health History</h3>
-                  <div className="space-y-1 text-xs font-semibold text-slate-800">
-                    {structured.family_history.map((f, i) => (
-                      <p key={i} className="p-2 bg-amber-50 text-amber-950 rounded-xl">
-                        {f}
+                {/* 3. Current Symptoms */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Activity className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      3. Current Symptoms
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={ayush.current_symptoms.join('\n')}
+                      onChange={(e) =>
+                        setEditedAyush({
+                          ...ayush,
+                          current_symptoms: e.target.value.split('\n').filter(Boolean),
+                        })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-emerald-500 text-xs font-semibold text-slate-800"
+                      placeholder="One symptom per line..."
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {ayush.current_symptoms.map((sym, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-full text-xs font-bold"
+                        >
+                          {sym}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Prakriti Assessment */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Sparkles className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      4. Prakriti Assessment (Constitution)
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <label className="text-slate-500 font-bold">Body Build:</label>
+                        <input
+                          type="text"
+                          value={ayush.prakriti_assessment.body_build || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              prakriti_assessment: {
+                                ...ayush.prakriti_assessment,
+                                body_build: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Skin Type:</label>
+                        <input
+                          type="text"
+                          value={ayush.prakriti_assessment.skin_type || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              prakriti_assessment: {
+                                ...ayush.prakriti_assessment,
+                                skin_type: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Temperament:</label>
+                        <input
+                          type="text"
+                          value={ayush.prakriti_assessment.temperament || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              prakriti_assessment: {
+                                ...ayush.prakriti_assessment,
+                                temperament: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs font-semibold text-slate-700 space-y-1">
+                      <p>
+                        Body Build:{' '}
+                        <strong>{ayush.prakriti_assessment.body_build || 'Madhyama'}</strong>
                       </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 8. Personal History & 9. Systems */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-4">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">8. Lifestyle & Habits</h3>
-                  <div className="space-y-1 text-xs font-semibold text-slate-800">
-                    {structured.personal_history.map((p, i) => (
-                      <p key={i} className="p-2 bg-slate-50 rounded-xl">
-                        {p}
+                      <p>
+                        Skin Type: <strong>{ayush.prakriti_assessment.skin_type || 'Moderate'}</strong>
                       </p>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">9. Review of Systems</h3>
-                  <div className="text-xs font-semibold text-slate-700 bg-slate-50 p-3 rounded-2xl space-y-1">
-                    {Object.entries(structured.review_of_systems || {}).map(([sys, note]) => (
-                      <p key={sys}>
-                        <strong className="capitalize">{sys}:</strong> {note as string}
+                      <p>
+                        Temperament:{' '}
+                        <strong>{ayush.prakriti_assessment.temperament || 'Balanced'}</strong>
                       </p>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* 10. Prior Investigations */}
-              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3 md:col-span-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">10. Prior Investigations & Lab Tests</h3>
-                {structured.prior_investigations && structured.prior_investigations.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {structured.prior_investigations.map((inv, i) => (
-                      <div
-                        key={i}
-                        className={`p-3.5 rounded-2xl border flex items-center justify-between ${
-                          inv.isAbnormal
-                            ? 'bg-rose-50 border-rose-300 text-rose-950'
-                            : 'bg-slate-50 border-slate-200 text-slate-800'
-                        }`}
-                      >
-                        <div>
-                          <p className="font-bold text-sm">{inv.test}</p>
-                          <p className="text-xs text-slate-500">
-                            Observed: <strong className="text-kiosk-navy">{inv.result} {inv.unit || ''}</strong> (Ref: {inv.referenceRange || 'N/A'})
-                          </p>
+                {/* 5. Vikriti Assessment */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Flame className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      5. Vikriti Assessment (Current Imbalances)
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <label className="text-slate-500 font-bold">Complaints:</label>
+                        <input
+                          type="text"
+                          value={(ayush.vikriti_assessment.current_complaints || []).join(', ')}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vikriti_assessment: {
+                                ...ayush.vikriti_assessment,
+                                current_complaints: e.target.value.split(',').map((s) => s.trim()),
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Digestive Fire (Agni):</label>
+                        <input
+                          type="text"
+                          value={ayush.vikriti_assessment.digestive_fire || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vikriti_assessment: {
+                                ...ayush.vikriti_assessment,
+                                digestive_fire: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Bowel Habits (Koshtha):</label>
+                        <input
+                          type="text"
+                          value={ayush.vikriti_assessment.bowel_habits || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vikriti_assessment: {
+                                ...ayush.vikriti_assessment,
+                                bowel_habits: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs font-semibold text-slate-700 space-y-1">
+                      <p>
+                        Active Symptoms:{' '}
+                        <strong>
+                          {(ayush.vikriti_assessment.current_complaints || []).join(', ') || 'None reported'}
+                        </strong>
+                      </p>
+                      <p>
+                        Agni (Digestion):{' '}
+                        <strong>{ayush.vikriti_assessment.digestive_fire || 'Samagni'}</strong>
+                      </p>
+                      <p>
+                        Koshtha (Bowel):{' '}
+                        <strong>{ayush.vikriti_assessment.bowel_habits || 'Madhyama'}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 6. Ahara Assessment */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Utensils className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      6. Ahara Assessment (Dietary Patterns)
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <label className="text-slate-500 font-bold">Diet Pattern:</label>
+                        <input
+                          type="text"
+                          value={ayush.ahara_assessment.dietary_pattern || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              ahara_assessment: {
+                                ...ayush.ahara_assessment,
+                                dietary_pattern: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Meal Timing:</label>
+                        <input
+                          type="text"
+                          value={ayush.ahara_assessment.meal_timing || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              ahara_assessment: {
+                                ...ayush.ahara_assessment,
+                                meal_timing: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Appetite:</label>
+                        <input
+                          type="text"
+                          value={ayush.ahara_assessment.appetite || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              ahara_assessment: {
+                                ...ayush.ahara_assessment,
+                                appetite: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs font-semibold text-slate-700 space-y-1">
+                      <p>
+                        Diet Pattern:{' '}
+                        <strong>{ayush.ahara_assessment.dietary_pattern || 'Vegetarian'}</strong>
+                      </p>
+                      <p>
+                        Meal Timing:{' '}
+                        <strong>{ayush.ahara_assessment.meal_timing || 'Regular'}</strong>
+                      </p>
+                      <p>
+                        Appetite: <strong>{ayush.ahara_assessment.appetite || 'Normal'}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 7. Vihara Assessment */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Moon className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      7. Vihara Assessment (Lifestyle & Routine)
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <label className="text-slate-500 font-bold">Sleep Pattern (Nidra):</label>
+                        <input
+                          type="text"
+                          value={ayush.vihara_assessment.sleep_pattern || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vihara_assessment: {
+                                ...ayush.vihara_assessment,
+                                sleep_pattern: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Physical Activity (Vyayama):</label>
+                        <input
+                          type="text"
+                          value={ayush.vihara_assessment.physical_activity || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vihara_assessment: {
+                                ...ayush.vihara_assessment,
+                                physical_activity: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 font-bold">Mental Stress (Manasika):</label>
+                        <input
+                          type="text"
+                          value={ayush.vihara_assessment.mental_stress || ''}
+                          onChange={(e) =>
+                            setEditedAyush({
+                              ...ayush,
+                              vihara_assessment: {
+                                ...ayush.vihara_assessment,
+                                mental_stress: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full p-2 rounded-lg border border-emerald-400 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs font-semibold text-slate-700 space-y-1">
+                      <p>
+                        Sleep: <strong>{ayush.vihara_assessment.sleep_pattern || 'Normal'}</strong>
+                      </p>
+                      <p>
+                        Exercise / Vyayama:{' '}
+                        <strong>{ayush.vihara_assessment.physical_activity || 'Moderate'}</strong>
+                      </p>
+                      <p>
+                        Stress / Manasika:{' '}
+                        <strong>{ayush.vihara_assessment.mental_stress || 'Mild'}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 8. Dashavidha Pariksha (10 Parameters) */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-3 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-700">
+                      <ShieldCheck className="w-5 h-5" />
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                        8. Dashavidha Pariksha (10-Fold Ayurvedic Examination)
+                      </h3>
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                      {Object.entries(ayush.dashavidha_pariksha).map(([k, v]) => (
+                        <div key={k}>
+                          <label className="text-[10px] font-bold uppercase text-slate-500">
+                            {k}
+                          </label>
+                          <input
+                            type="text"
+                            value={v as string}
+                            onChange={(e) =>
+                              setEditedAyush({
+                                ...ayush,
+                                dashavidha_pariksha: {
+                                  ...ayush.dashavidha_pariksha,
+                                  [k]: e.target.value,
+                                },
+                              })
+                            }
+                            className="w-full p-2 rounded-lg border border-emerald-400 font-semibold text-xs"
+                          />
                         </div>
-                        {inv.isAbnormal && <AbnormalValueBadge />}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {Object.entries(ayush.dashavidha_pariksha).map(([k, v]) => (
+                        <div
+                          key={k}
+                          className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl"
+                        >
+                          <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                            {k.replace('_', ' ')}
+                          </p>
+                          <p className="text-xs font-bold text-slate-800 mt-0.5">{v as string}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 9. Previous Medical / Treatment History */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <FileText className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      9. Previous Medical & Treatment History
+                    </h3>
+                  </div>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={ayush.previous_medical_treatment_history.join('\n')}
+                      onChange={(e) =>
+                        setEditedAyush({
+                          ...ayush,
+                          previous_medical_treatment_history: e.target.value
+                            .split('\n')
+                            .filter(Boolean),
+                        })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-emerald-500 text-xs font-semibold text-slate-800"
+                      placeholder="One item per line..."
+                    />
+                  ) : (
+                    <div className="space-y-1 text-xs font-semibold text-slate-800">
+                      {ayush.previous_medical_treatment_history.length > 0 ? (
+                        ayush.previous_medical_treatment_history.map((hist, i) => (
+                          <div key={i} className="p-2 bg-slate-50 rounded-xl">
+                            {hist}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-slate-400">No previous treatments reported.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 10. Current Medications */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Pill className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      10. Medications & Formulations
+                    </h3>
+                  </div>
+                  <div className="space-y-2">
+                    {ayush.medications.length > 0 ? (
+                      ayush.medications.map((med, i) => (
+                        <div
+                          key={i}
+                          className="p-3 bg-emerald-50 text-emerald-950 rounded-2xl border border-emerald-200 flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <p className="font-bold">
+                              {med.name} {med.dosage || ''}
+                            </p>
+                            <p className="text-emerald-700">{med.frequency || 'Daily'}</p>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md bg-white text-emerald-800 text-[10px] uppercase font-black">
+                            {med.source}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-400">No active medications reported.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 11. Uploaded Investigations */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-3 md:col-span-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <FileText className="w-5 h-5" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      11. Uploaded Investigations & Lab Tests
+                    </h3>
+                  </div>
+                  {ayush.uploaded_investigations && ayush.uploaded_investigations.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {ayush.uploaded_investigations.map((inv, i) => (
+                        <div
+                          key={i}
+                          className={`p-3.5 rounded-2xl border flex items-center justify-between ${
+                            inv.isAbnormal
+                              ? 'bg-rose-50 border-rose-300 text-rose-950'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-bold text-sm">{inv.test}</p>
+                            <p className="text-xs text-slate-500">
+                              Observed:{' '}
+                              <strong className="text-kiosk-navy">
+                                {inv.result} {inv.unit || ''}
+                              </strong>{' '}
+                              (Ref: {inv.referenceRange || 'N/A'})
+                            </p>
+                          </div>
+                          {inv.isAbnormal && <AbnormalValueBadge />}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">No laboratory test values recorded.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Doctor Clinical Notes */}
+              <div className="p-6 rounded-3xl bg-white border-2 border-emerald-100 shadow-sm space-y-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-emerald-800">
+                  Vaidya / Ayurvedic Physician Clinical Impression & Notes:
+                </label>
+                <textarea
+                  rows={3}
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  placeholder="Enter Ayurvedic diagnosis (Samprapti / Rogi Pariksha), Chikitsa sutra, and prescription recommendations here..."
+                  className="w-full p-4 rounded-2xl border-2 border-emerald-200 text-sm font-semibold text-kiosk-navy focus:border-emerald-500 focus:outline-none transition"
+                />
+              </div>
+            </div>
+          ) : (
+            /* ============================================================ */
+            /* ALLOPATHIC CLINICAL SUMMARY (11 Sections)                    */
+            /* ============================================================ */
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* 1. Chief Complaint */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">1. Chief Complaint</h3>
+                  </div>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={structured.chief_complaint}
+                      onChange={(e) =>
+                        setEditedStructured({ ...structured, chief_complaint: e.target.value })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-lg font-bold text-kiosk-navy"
+                    />
+                  ) : (
+                    <p className="text-xl font-black text-kiosk-navy">{structured.chief_complaint}</p>
+                  )}
+                </div>
+
+                {/* 2. HPI */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">2. History of Present Illness</h3>
+                  </div>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={structured.history_of_present_illness}
+                      onChange={(e) =>
+                        setEditedStructured({ ...structured, history_of_present_illness: e.target.value })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-sm font-semibold text-slate-800"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-700 leading-relaxed">
+                      {structured.history_of_present_illness}
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Past Medical History */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">3. Past Medical History</h3>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={structured.past_medical_history.join('\n')}
+                      onChange={(e) =>
+                        setEditedStructured({
+                          ...structured,
+                          past_medical_history: e.target.value.split('\n').filter(Boolean),
+                        })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-xs font-semibold text-slate-800"
+                    />
+                  ) : (
+                    <div className="space-y-1 text-sm font-semibold text-slate-800">
+                      {structured.past_medical_history.map((pmh, i) => (
+                        <div key={i} className="p-2 bg-slate-50 rounded-xl">
+                          {pmh}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Past Surgical History */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">4. Past Surgical History</h3>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={structured.past_surgical_history.join('\n')}
+                      onChange={(e) =>
+                        setEditedStructured({
+                          ...structured,
+                          past_surgical_history: e.target.value.split('\n').filter(Boolean),
+                        })
+                      }
+                      className="w-full p-3 rounded-xl border-2 border-kiosk-blue text-xs font-semibold text-slate-800"
+                    />
+                  ) : (
+                    <div className="space-y-1 text-sm font-semibold text-slate-800">
+                      {structured.past_surgical_history.map((surg, i) => (
+                        <div key={i} className="p-2 bg-slate-50 rounded-xl">
+                          {surg}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Current Medications */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3 md:col-span-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">5. Current Medications & Prescriptions</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {structured.current_medications.map((med, i) => (
+                      <div key={i} className="p-3 bg-emerald-50 text-emerald-950 rounded-2xl border border-emerald-200 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold">{med.name} {med.dosage || ''}</p>
+                          <p className="text-emerald-700">{med.frequency || 'Rx'}</p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-white text-emerald-800 text-[10px] uppercase font-black">
+                          {med.source}
+                        </span>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-400">No laboratory test values recorded.</p>
-                )}
+                </div>
+
+                {/* 6. Allergies & 7. Family */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-4">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-rose-600 mb-2">6. Allergies & Sensitivities</h3>
+                    <div className="space-y-1 text-xs font-semibold text-slate-800">
+                      {structured.allergies.map((a, i) => (
+                        <p key={i} className="p-2 bg-rose-50 text-rose-900 rounded-xl">
+                          {a.allergen}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-amber-600 mb-2">7. Family Health History</h3>
+                    <div className="space-y-1 text-xs font-semibold text-slate-800">
+                      {structured.family_history.map((f, i) => (
+                        <p key={i} className="p-2 bg-amber-50 text-amber-950 rounded-xl">
+                          {f}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 8. Personal History & 9. Systems */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-4">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">8. Lifestyle & Habits</h3>
+                    <div className="space-y-1 text-xs font-semibold text-slate-800">
+                      {structured.personal_history.map((p, i) => (
+                        <p key={i} className="p-2 bg-slate-50 rounded-xl">
+                          {p}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">9. Review of Systems</h3>
+                    <div className="text-xs font-semibold text-slate-700 bg-slate-50 p-3 rounded-2xl space-y-1">
+                      {Object.entries(structured.review_of_systems || {}).map(([sys, note]) => (
+                        <p key={sys}>
+                          <strong className="capitalize">{sys}:</strong> {note as string}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 10. Prior Investigations */}
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-3 md:col-span-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">10. Prior Investigations & Lab Tests</h3>
+                  {structured.prior_investigations && structured.prior_investigations.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {structured.prior_investigations.map((inv, i) => (
+                        <div
+                          key={i}
+                          className={`p-3.5 rounded-2xl border flex items-center justify-between ${
+                            inv.isAbnormal
+                              ? 'bg-rose-50 border-rose-300 text-rose-950'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-bold text-sm">{inv.test}</p>
+                            <p className="text-xs text-slate-500">
+                              Observed: <strong className="text-kiosk-navy">{inv.result} {inv.unit || ''}</strong> (Ref: {inv.referenceRange || 'N/A'})
+                            </p>
+                          </div>
+                          {inv.isAbnormal && <AbnormalValueBadge />}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">No laboratory test values recorded.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Doctor Clinical Notes */}
+              <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+                  Doctor Consultation Notes / Clinical Impression:
+                </label>
+                <textarea
+                  rows={3}
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  placeholder="Enter attending doctor diagnosis, clinical notes, and physical examination findings here..."
+                  className="w-full p-4 rounded-2xl border-2 border-slate-300 text-sm font-semibold text-kiosk-navy focus:border-kiosk-blue focus:outline-none transition"
+                />
               </div>
             </div>
-
-            {/* Doctor Clinical Notes */}
-            <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-sm space-y-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-                Doctor Consultation Notes / Clinical Impression:
-              </label>
-              <textarea
-                rows={3}
-                value={doctorNotes}
-                onChange={(e) => setDoctorNotes(e.target.value)}
-                placeholder="Enter attending doctor diagnosis, clinical notes, and physical examination findings here..."
-                className="w-full p-4 rounded-2xl border-2 border-slate-300 text-sm font-semibold text-kiosk-navy focus:border-kiosk-blue focus:outline-none transition"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Action Bar (Approve, Edit, Reject, Sync HIS) */}
           <div className="bg-white rounded-3xl p-5 sm:p-6 border-2 border-slate-200 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 sticky bottom-4 z-30">

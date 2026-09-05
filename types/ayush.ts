@@ -20,14 +20,18 @@ export interface PrakritiAssessment {
 export interface VikritiAssessment {
   recent_changes?: string;
   current_symptoms?: string[];
+  current_complaints?: string[];
   digestive_changes?: string;
+  digestive_fire?: string;
   sleep_changes?: string;
   energy_changes?: string;
+  bowel_habits?: string;
   imbalance_notes?: string;
 }
 
 export interface AharaAssessment {
   food_types?: string;
+  dietary_pattern?: string;
   meal_timing?: string;
   appetite?: string;
   food_preferences?: string;
@@ -39,7 +43,9 @@ export interface ViharaAssessment {
   daily_routine?: string;
   physical_activity?: string;
   sleep?: string;
+  sleep_pattern?: string;
   stress?: string;
+  mental_stress?: string;
   work_pattern?: string;
   lifestyle_notes?: string;
 }

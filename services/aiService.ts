@@ -1,5 +1,8 @@
 import { PreferredLanguage } from '@/types/patient';
 import { ClinicalStage, ClinicalQuestion, StructuredClinicalHistory } from '@/types/clinical';
+import { ConsultationMode } from '@/types/intakeSession';
+import { AyushStage } from '@/types/ayush';
+import { AyushService } from './ayushService';
 
 export type ComplaintCategory =
   | 'cardiovascular'
@@ -552,9 +555,16 @@ export class AIService {
   }
 
   /**
-   * Generates initial Chief Complaint greeting in chosen language
+   * Generates initial greeting in chosen language and consultation mode
    */
-  static getInitialGreeting(lang: PreferredLanguage): ClinicalQuestion {
+  static getInitialGreeting(
+    lang: PreferredLanguage = 'en',
+    consultationMode: ConsultationMode = 'MODERN_MEDICINE'
+  ): ClinicalQuestion {
+    if (consultationMode === 'AYUSH') {
+      return AyushService.getInitialGreeting(lang);
+    }
+
     const questions: Record<PreferredLanguage, string> = {
       en: 'Hello. I am Medi, your clinical assistant. Please tell me or select what main health problem brings you to the hospital today?',
       ta: 'வணக்கம். நான் மெடி (Medi), உங்கள் மருத்துவ உதவியாளர். இன்று மருத்துவமனைக்கு வரக் காரணமான உங்கள் முக்கிய உடல்நலப் பிரச்சனை என்ன?',
@@ -584,8 +594,13 @@ export class AIService {
     currentStage: ClinicalStage,
     questionIndex: number,
     complaintCategory: ComplaintCategory,
-    lang: PreferredLanguage
+    lang: PreferredLanguage = 'en',
+    consultationMode: ConsultationMode = 'MODERN_MEDICINE'
   ): ClinicalQuestion | null {
+    if (consultationMode === 'AYUSH') {
+      return AyushService.getNextQuestion(currentStage as AyushStage, questionIndex, lang);
+    }
+
     if (currentStage === 'hpi') {
       const hpiQuestions = HPI_TEMPLATES[complaintCategory] || HPI_TEMPLATES.general;
       if (questionIndex < hpiQuestions.length) {
@@ -626,5 +641,90 @@ export class AIService {
     }
 
     return null;
+  }
+
+  /**
+   * Deterministic categorization of patient chief complaint into clinical sub-specialty
+   */
+  static detectComplaintCategory(text: string): ComplaintCategory {
+    if (!text) return 'general';
+    const lower = text.toLowerCase();
+    if (
+      lower.includes('chest') ||
+      lower.includes('heart') ||
+      lower.includes('நெஞ்சு') ||
+      lower.includes('மார்பு') ||
+      lower.includes('सीना') ||
+      lower.includes('छाती') ||
+      lower.includes('दिल')
+    ) {
+      return 'cardiovascular';
+    }
+    if (
+      lower.includes('breath') ||
+      lower.includes('cough') ||
+      lower.includes('wheez') ||
+      lower.includes('மூச்சு') ||
+      lower.includes('இருமல்') ||
+      lower.includes('सांस') ||
+      lower.includes('खांसी')
+    ) {
+      return 'respiratory';
+    }
+    if (
+      lower.includes('stomach') ||
+      lower.includes('belly') ||
+      lower.includes('vomit') ||
+      lower.includes('nausea') ||
+      lower.includes('diarrhea') ||
+      lower.includes('வயிறு') ||
+      lower.includes('வாந்தி') ||
+      lower.includes('பேதி') ||
+      lower.includes('पेट') ||
+      lower.includes('उल्टी') ||
+      lower.includes('दस्त')
+    ) {
+      return 'gastrointestinal';
+    }
+    if (
+      lower.includes('headache') ||
+      lower.includes('dizz') ||
+      lower.includes('faint') ||
+      lower.includes('seizure') ||
+      lower.includes('தலைவலி') ||
+      lower.includes('மயக்கம்') ||
+      lower.includes('வலிப்பு') ||
+      lower.includes('सिरदर्द') ||
+      lower.includes('चक्कर') ||
+      lower.includes('दौरा')
+    ) {
+      return 'neurological';
+    }
+    if (
+      lower.includes('fever') ||
+      lower.includes('chills') ||
+      lower.includes('shiver') ||
+      lower.includes('காய்ச்சல்') ||
+      lower.includes('நடுக்கம்') ||
+      lower.includes('बुखार') ||
+      lower.includes('ठंड')
+    ) {
+      return 'infectious_fever';
+    }
+    if (
+      lower.includes('joint') ||
+      lower.includes('back') ||
+      lower.includes('knee') ||
+      lower.includes('shoulder') ||
+      lower.includes('bone') ||
+      lower.includes('முதுகு') ||
+      lower.includes('மூட்டு') ||
+      lower.includes('पीठ') ||
+      lower.includes('घुटना') ||
+      lower.includes('हड्डी')
+    ) {
+      return 'musculoskeletal';
+    }
+    return 'general';
   }
 }

@@ -8,11 +8,13 @@ import { KioskButton } from './KioskButton';
 
 interface RedFlagModalProps {
   alert: RedFlagAlert | null;
-  onDismiss: () => void;
+  onDismiss?: () => void;
+  onAcknowledge?: () => void;
 }
 
-export const RedFlagModal: React.FC<RedFlagModalProps> = ({ alert, onDismiss }) => {
+export const RedFlagModal: React.FC<RedFlagModalProps> = ({ alert, onDismiss, onAcknowledge }) => {
   const { t } = useLanguage();
+  const handleClose = onAcknowledge || onDismiss || (() => {});
 
   if (!alert) return null;
 
@@ -68,7 +70,7 @@ export const RedFlagModal: React.FC<RedFlagModalProps> = ({ alert, onDismiss }) 
           <KioskButton
             size="large"
             variant="outline"
-            onClick={onDismiss}
+            onClick={handleClose}
             className="w-full text-slate-700 border-slate-300 hover:bg-slate-100"
           >
             {t.redFlags.dismissAndContinue}

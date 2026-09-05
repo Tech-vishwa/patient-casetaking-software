@@ -36,11 +36,7 @@ export default function LanguageSelectionPage() {
 
     // Automatic step transition after brief visual confirmation (600ms)
     setTimeout(() => {
-      if (patient) {
-        router.push('/kiosk/consent');
-      } else {
-        router.push('/kiosk/identification');
-      }
+      router.push('/kiosk/mode');
     }, 600);
   };
 
@@ -67,7 +63,7 @@ export default function LanguageSelectionPage() {
       {isAdvancing && (
         <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 font-bold flex items-center justify-center gap-2 animate-in fade-in">
           <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-          <span>Language selected! Proceeding to patient identification...</span>
+          <span>Language selected! Proceeding to consultation mode selection...</span>
         </div>
       )}
 

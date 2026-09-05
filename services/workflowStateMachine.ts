@@ -8,6 +8,8 @@ export class WorkflowStateMachine {
     switch (state) {
       case 'ONBOARDING':
         return '/kiosk/welcome';
+      case 'CONSULTATION_MODE_SELECTED':
+        return '/kiosk/mode';
       case 'LANGUAGE_SELECTED':
         return '/kiosk/identification';
       case 'IDENTIFIED':
@@ -37,6 +39,7 @@ export class WorkflowStateMachine {
    */
   static getWorkflowStateForRoute(pathname: string): WorkflowState {
     if (pathname.includes('/kiosk/welcome')) return 'ONBOARDING';
+    if (pathname.includes('/kiosk/mode')) return 'CONSULTATION_MODE_SELECTED';
     if (pathname.includes('/kiosk/language')) return 'ONBOARDING';
     if (pathname.includes('/kiosk/identification')) return 'LANGUAGE_SELECTED';
     if (pathname.includes('/kiosk/consent')) return 'IDENTIFIED';
@@ -55,6 +58,8 @@ export class WorkflowStateMachine {
   static getNextWorkflowState(currentState: WorkflowState): WorkflowState {
     switch (currentState) {
       case 'ONBOARDING':
+        return 'CONSULTATION_MODE_SELECTED';
+      case 'CONSULTATION_MODE_SELECTED':
         return 'LANGUAGE_SELECTED';
       case 'LANGUAGE_SELECTED':
         return 'IDENTIFIED';
@@ -89,13 +94,12 @@ export class WorkflowStateMachine {
   static mapWorkflowStateToStep(state: WorkflowState): number {
     switch (state) {
       case 'ONBOARDING':
+      case 'CONSULTATION_MODE_SELECTED':
         return 1;
       case 'LANGUAGE_SELECTED':
-        return 2;
       case 'IDENTIFIED':
         return 2;
       case 'CONSENT_COMPLETED':
-        return 3;
       case 'HISTORY_IN_PROGRESS':
       case 'HISTORY_COMPLETED':
         return 3;
@@ -118,6 +122,7 @@ export class WorkflowStateMachine {
   static mapWorkflowStateToStatus(state: WorkflowState): IntakeSessionStatus {
     switch (state) {
       case 'ONBOARDING':
+      case 'CONSULTATION_MODE_SELECTED':
       case 'LANGUAGE_SELECTED':
       case 'IDENTIFIED':
       case 'CONSENT_COMPLETED':

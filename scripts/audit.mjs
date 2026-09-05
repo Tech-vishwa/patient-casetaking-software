@@ -5,6 +5,7 @@ import { PatientService } from '../services/patientService.js';
 import { ConsentService } from '../services/consentService.js';
 import { IntakeSessionService } from '../services/intakeSessionService.js';
 import { AIService } from '../services/aiService.js';
+import { AyushService } from '../services/ayushService.js';
 import { RedFlagService } from '../services/redFlagService.js';
 import { ClinicalService } from '../services/clinicalService.js';
 import { DocumentProcessingService } from '../services/documentProcessingService.js';
@@ -410,6 +411,132 @@ async function runComprehensiveAudit() {
   const resGetAnalytics = await analyticsApi.GET(reqGetAnalytics);
   const jsonGetAnalytics = await resGetAnalytics.json();
   assert(resGetAnalytics.status === 200 && jsonGetAnalytics.data?.totalPatients > 0, 'API GET /api/analytics returns hospital metrics');
+
+  // -------------------------------------------------------------
+  // [15] Auditing AYUSH / Ayurveda Consultation Mode & Dual Engine
+  // -------------------------------------------------------------
+  console.log('\n[15] Auditing AYUSH / Ayurveda Consultation Mode & Dual Engine...');
+
+  // 1. AYUSH Question Bank in EN, TA, HI
+  const ayushGreetingEn = AyushService.getInitialGreeting('en');
+  assert(ayushGreetingEn && ayushGreetingEn.question.includes('health problem'), 'AYUSH initial greeting returns English question');
+
+  const ayushGreetingTa = AyushService.getInitialGreeting('ta');
+  assert(ayushGreetingTa && ayushGreetingTa.question.includes('உடல்நலப் பிரச்சனை'), 'AYUSH initial greeting returns Tamil question');
+
+  const ayushGreetingHi = AyushService.getInitialGreeting('hi');
+  assert(ayushGreetingHi && ayushGreetingHi.question.includes('स्वास्थ्य समस्या'), 'AYUSH initial greeting returns Hindi question');
+
+  // 2. AIService dual routing by consultationMode
+  const ayushPrakritiQ = AIService.getNextQuestion('prakriti', 0, 'general', 'en', 'AYUSH');
+  assert(ayushPrakritiQ && ayushPrakritiQ.fieldKey === 'body_build', 'AIService delegates to AyushService when consultationMode="AYUSH"');
+
+  const modernHpiQ = AIService.getNextQuestion('hpi', 0, 'cardiovascular', 'en', 'MODERN_MEDICINE');
+  assert(modernHpiQ && modernHpiQ.fieldKey === 'onset', 'AIService serves modern allopathic HPI when consultationMode="MODERN_MEDICINE"');
+
+  // 3. Save & Retrieve AYUSH Assessment in database
+  const savedAyush = await mockDb.saveAyushAssessment({
+    patient_id: 'demo-pat-004',
+    intake_session_id: 'demo-sess-004',
+    presenting_complaint: 'Chronic Amavata (Joint pain and morning stiffness)',
+    duration: '6 months',
+    current_symptoms: ['Morning joint stiffness', 'Loss of appetite', 'Fatigue'],
+    prakriti: { body_build: 'Madhyama', skin_type: 'Snigdha', temperament: 'Pitta-dominant' },
+    vikriti: { current_complaints: ['Joint pain', 'Stiffness'], digestive_fire: 'Mandagni' },
+    ahara_assessment: { dietary_pattern: 'Vegetarian', meal_timing: 'Irregular' },
+    vihara_assessment: { sleep_pattern: 'Disturbed', physical_activity: 'Sedentary' },
+    sara: 'Madhyama Sara',
+    samhanana: 'Madhyama',
+    pramana: 'Sama Pramana',
+    satmya: 'Mishra Satmya',
+    sattva: 'Madhyama Sattva',
+    ahara_shakti: 'Avara Abhyavaharana Shakti',
+    vyayama_shakti: 'Madhyama Vyayama Shakti',
+    vaya: 'Madhyama Vaya (48 yrs)',
+  });
+  assert(savedAyush && savedAyush.id.startsWith('ayush-'), 'AYUSH assessment saved with unique UUID');
+
+  const fetchedAyush = await mockDb.getAyushAssessmentBySession('demo-sess-004');
+  assert(fetchedAyush && fetchedAyush.presenting_complaint.includes('Amavata'), 'AYUSH assessment retrieved by intake session ID');
+
+  // 4. Dual Summary Generation with mandatory disclaimer
+  const ayushSummary = await SummaryGeneratorService.generateSummary('demo-sess-004', 'demo-pat-004');
+  assert(ayushSummary.consultation_mode === 'AYUSH', 'Summary generator identifies AYUSH consultation mode');
+  assert(ayushSummary.ayush_summary !== undefined, 'Summary generator produces 11-section Ayurvedic summary');
+  assert(
+    ayushSummary.ayush_summary.dashavidha_pariksha && Object.keys(ayushSummary.ayush_summary.dashavidha_pariksha).length === 10,
+    'AYUSH summary contains all 10 Dashavidha Pariksha parameters'
+  );
+  assert(
+    ayushSummary.summary_content.includes('AI-GENERATED DRAFT — REQUIRES PHYSICIAN VERIFICATION'),
+    'AYUSH summary contains mandatory disclaimer banner'
+  );
+
+  // 5. Doctor Queue Filtering by Consultation Mode
+  const allQueue = await DoctorQueueService.getQueue({ consultationModeFilter: 'all' });
+  assert(allQueue.length >= 3, `All-mode queue contains patients (${allQueue.length})`);
+
+  const modernQueue = await DoctorQueueService.getQueue({ consultationModeFilter: 'MODERN_MEDICINE' });
+  const modernOnly = modernQueue.every((q) => q.consultationMode === 'MODERN_MEDICINE');
+  assert(modernOnly && modernQueue.length > 0, `Modern Medicine queue contains only modern patients (${modernQueue.length})`);
+
+  const ayushQueue = await DoctorQueueService.getQueue({ consultationModeFilter: 'AYUSH' });
+  const ayushOnly = ayushQueue.every((q) => q.consultationMode === 'AYUSH');
+  assert(ayushOnly && ayushQueue.length > 0, `AYUSH queue contains only AYUSH patients (${ayushQueue.length})`);
+  const lakshmiInAyush = ayushQueue.some((q) => q.fullName.includes('Lakshmi Devi'));
+  assert(lakshmiInAyush, 'Seed AYUSH patient (Lakshmi Devi) appears in AYUSH OPD queue');
+
+  // 6. Doctor AYUSH Review Submission and HIS sync
+  const ayushReview = await DoctorReviewService.submitReview({
+    intakeSessionId: 'demo-sess-004',
+    patientId: 'demo-pat-004',
+    doctorId: 'doc-002',
+    doctorName: 'Vaidya Ananya Nambiar',
+    originalSummary: ayushSummary.structured_summary,
+    editedSummary: ayushSummary.structured_summary,
+    originalAyushSummary: ayushSummary.ayush_summary,
+    editedAyushSummary: ayushSummary.ayush_summary,
+    reviewStatus: 'approved',
+    doctorNotes: 'Prescribed Rasnasaptak Kwath 20ml BD and Yogaraj Guggulu 1 tab BD after meals.',
+  });
+  assert(ayushReview && ayushReview.review_status === 'approved', 'Vaidya / Ayurvedic physician review submitted and approved');
+
+  const ayushHisResult = await HospitalIntegrationService.pushClinicalSummary('demo-sess-004', ayushSummary.ayush_summary);
+  assert(ayushHisResult.success === true, 'Ayurvedic intake summary pushed to hospital EMR gateway');
+
+  // 7. API Routes with AYUSH Filtering & Review
+  const reqAyushQueue = new NextRequest('http://localhost:3000/api/doctor/queue?consultationModeFilter=AYUSH');
+  const resAyushQueue = await queueApi.GET(reqAyushQueue);
+  const jsonAyushQueue = await resAyushQueue.json();
+  assert(
+    resAyushQueue.status === 200 &&
+      jsonAyushQueue.data?.queue?.length > 0 &&
+      jsonAyushQueue.data.queue.every((q) => q.consultationMode === 'AYUSH'),
+    'API GET /api/doctor/queue?consultationModeFilter=AYUSH returns filtered AYUSH queue'
+  );
+
+  const reqPostAyushReview = new NextRequest('http://localhost:3000/api/doctor/review', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      intakeSessionId: 'demo-sess-004',
+      patientId: 'demo-pat-004',
+      doctorId: 'doc-002',
+      doctorName: 'Vaidya Ananya Nambiar',
+      originalSummary: ayushSummary.structured_summary,
+      editedSummary: ayushSummary.structured_summary,
+      originalAyushSummary: ayushSummary.ayush_summary,
+      editedAyushSummary: ayushSummary.ayush_summary,
+      reviewStatus: 'approved',
+      doctorNotes: 'API Verified - Rasnasaptak Kwath BD',
+    }),
+  });
+  const resPostAyushReview = await reviewApi.POST(reqPostAyushReview);
+  const jsonPostAyushReview = await resPostAyushReview.json();
+  assert(
+    resPostAyushReview.status === 201 && jsonPostAyushReview.data?.review_status === 'approved',
+    'API POST /api/doctor/review accepts AYUSH structured review payload'
+  );
 
   console.log(`\n===============================================================`);
   console.log(`🎉 AUDIT COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (100% SUCCESS)`);

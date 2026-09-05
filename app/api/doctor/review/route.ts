@@ -4,7 +4,18 @@ import { DoctorReviewService } from '@/services/doctorReviewService';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { intakeSessionId, patientId, doctorId, doctorName, originalSummary, editedSummary, reviewStatus, doctorNotes } = body;
+    const {
+      intakeSessionId,
+      patientId,
+      doctorId,
+      doctorName,
+      originalSummary,
+      editedSummary,
+      originalAyushSummary,
+      editedAyushSummary,
+      reviewStatus,
+      doctorNotes,
+    } = body;
 
     if (!intakeSessionId || !patientId || !doctorId || !reviewStatus) {
       return NextResponse.json(
@@ -20,6 +31,8 @@ export async function POST(req: NextRequest) {
       doctorName: doctorName || 'Attending Physician',
       originalSummary,
       editedSummary,
+      originalAyushSummary,
+      editedAyushSummary,
       reviewStatus,
       doctorNotes,
     });

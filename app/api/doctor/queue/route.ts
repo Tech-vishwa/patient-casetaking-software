@@ -7,11 +7,13 @@ export async function GET(req: NextRequest) {
     const searchQuery = searchParams.get('searchQuery') || undefined;
     const priorityFilter = (searchParams.get('priorityFilter') as any) || undefined;
     const statusFilter = (searchParams.get('statusFilter') as any) || undefined;
+    const consultationModeFilter = (searchParams.get('consultationModeFilter') as any) || undefined;
 
     const queue = await DoctorQueueService.getQueue({
       searchQuery,
       priorityFilter,
       statusFilter,
+      consultationModeFilter,
     });
 
     const metrics = await DoctorQueueService.getQueueMetrics();

@@ -73,6 +73,7 @@ export interface StructuredClinicalHistory {
     diet?: string;
     sleep?: string;
     exercise?: string;
+    occupation?: string;
   };
   review_of_systems?: Record<string, string>;
   created_at: string;

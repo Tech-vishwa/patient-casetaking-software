@@ -33,6 +33,11 @@ export class DoctorQueueService {
         if (item.reviewStatus !== filters.statusFilter) return false;
       }
 
+      // Consultation mode filter
+      if (filters.consultationModeFilter && filters.consultationModeFilter !== 'all') {
+        if (item.consultationMode !== filters.consultationModeFilter) return false;
+      }
+
       return true;
     });
   }
